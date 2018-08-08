@@ -11,6 +11,9 @@ description = """
 A Rust library with native bindings to unix if* structures
 """
 
+[badges]
+travis-ci = { repository = "glebpom/rust-ifstructs" }
+
 [dependencies]
 libc = "^0.2"
 cfg-if = "0.1.4"
