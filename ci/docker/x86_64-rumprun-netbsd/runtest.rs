@@ -10,7 +10,7 @@ fn main() {
 
     let status = Command::new("rumprun-bake")
         .arg("hw_virtio")
-        .arg("/tmp/ifreq-test.img")
+        .arg("/tmp/ifstructs-test.img")
         .arg(env::args().nth(1).unwrap())
         .status()
         .expect("failed to run rumprun-bake");
@@ -20,7 +20,7 @@ fn main() {
         .arg("-nographic")
         .arg("-vga").arg("none")
         .arg("-m").arg("64")
-        .arg("-kernel").arg("/tmp/ifreq-test.img")
+        .arg("-kernel").arg("/tmp/ifstructs-test.img")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()

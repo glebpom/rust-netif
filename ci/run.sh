@@ -43,7 +43,7 @@ if [ "$QEMU" != "" ]; then
   # Create a mount a fresh new filesystem image that we'll later pass to QEMU.
   # This will have a `run.sh` script will which use the artifacts inside to run
   # on the host.
-  rm -f $tmpdir/ifreq-test.img
+  rm -f $tmpdir/ifstructs-test.img
   mkdir $tmpdir/mount
 
   # Do the standard rigamarole of cross-compiling an executable and then the
@@ -51,15 +51,15 @@ if [ "$QEMU" != "" ]; then
   cargo build \
     --tests
     --target $TARGET
-  rm $CARGO_TARGET_DIR/target/debug/ifreq-*.d
-  cp $CARGO_TARGET_DIR/target/debug/ifreq-* $tmpdir/mount/ifreq-test
-  echo 'exec $1/ifreq-test' > $tmpdir/mount/run.sh
+  rm $CARGO_TARGET_DIR/target/debug/ifstructs-*.d
+  cp $CARGO_TARGET_DIR/target/debug/ifstructs-* $tmpdir/mount/ifstructs-test
+  echo 'exec $1/ifstructs-test' > $tmpdir/mount/run.sh
 
   du -sh $tmpdir/mount
   genext2fs \
       --root $tmpdir/mount \
       --size-in-blocks 100000 \
-      $tmpdir/ifreq-test.img
+      $tmpdir/ifstructs-test.img
 
   # Pass -snapshot to prevent tampering with the disk images, this helps when
   # running this script in development. The two drives are then passed next,
@@ -70,7 +70,7 @@ if [ "$QEMU" != "" ]; then
     -m 1024 \
     -snapshot \
     -drive if=virtio,file=$tmpdir/$qemufile \
-    -drive if=virtio,file=$tmpdir/ifreq-test.img \
+    -drive if=virtio,file=$tmpdir/ifstructs-test.img \
     -net nic,model=virtio \
     -net user \
     -nographic \

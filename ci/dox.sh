@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Builds documentation for all target triples that we have a registered URL for
-# in ifreq. This scrapes the list of triples to document from `src/lib.rs`
+# in ifstructs. This scrapes the list of triples to document from `src/lib.rs`
 # which has a bunch of `html_root_url` directives we pick up.
 
 set -e
@@ -17,9 +17,9 @@ for target in $TARGETS; do
   echo documenting $target
 
   rustdoc -o target/doc/$target --target $target src/lib.rs --cfg cross_platform_docs \
-    --crate-name ifreq
+    --crate-name ifstructs
 
-  echo "<li><a href="/ifreq/$target/ifreq/index.html">$target</a></li>" \
+  echo "<li><a href="/ifstructs/$target/ifstructs/index.html">$target</a></li>" \
     >> target/doc/index.html
 done
 

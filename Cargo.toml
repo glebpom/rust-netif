@@ -1,5 +1,5 @@
 [package]
-name = "ifreq"
+name = "ifstructs"
 version = "0.1.0"
 authors = ["Gleb Pomykalov <gleb@pomykalov.ru>"]
 license = "MIT"

@@ -1,6 +1,6 @@
 # Initial script which is run inside of all qemu images. The first argument to
 # this script (as arranged by the qemu image itself) is the path to where the
-# ifreq crate is mounted.
+# ifstructs crate is mounted.
 #
 # For qemu images we currently need to install Rust manually as this wasn't done
 # by the initial run-travis.sh script
@@ -11,8 +11,8 @@
 set -ex
 
 ROOT=$1
-cp -r $ROOT/ifreq /tmp/ifreq
-cd /tmp/ifreq
+cp -r $ROOT/ifstructs /tmp/ifstructs
+cd /tmp/ifstructs
 
 TARGET=$(cat $ROOT/TARGET)
 export CARGO_TARGET_DIR=/tmp
