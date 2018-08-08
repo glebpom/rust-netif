@@ -35,13 +35,14 @@ mod tests {
     use std::io;
     use std::mem;
 
-    #[cfg(any(target_os = "linux", target_os = "android"))]
-    const SIOCGIFFLAGS: libc::c_ulong = libc::SIOCGIFFLAGS;
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    const SIOCGIFFLAGS: libc::c_ulong = request_code_readwrite!(b'i', 17, mem::size_of::<ifreq>());
 
     #[test]
     fn test_get_iface_flags() {
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        let request_code = libc::SIOCGIFFLAGS;
+        #[cfg(not(any(target_os = "linux", target_os = "android")))]
+        let request_code = request_code_readwrite!(b'i', 17, mem::size_of::<ifreq>());
+
         let mut req: ifreq = unsafe { mem::zeroed() };
         req.set_name("lo0").unwrap();
 
@@ -50,7 +51,7 @@ mod tests {
             panic!("Socket error {:?}", io::Error::last_os_error());
         }
 
-        let res = unsafe { libc::ioctl(sock, SIOCGIFFLAGS, &mut req) };
+        let res = unsafe { libc::ioctl(sock, request_code, &mut req) };
         if res < 0 {
             panic!(
                 "SIOCGIFFLAGS failed with error {:?}",
