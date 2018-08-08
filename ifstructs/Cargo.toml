@@ -1,0 +1,22 @@
+[package]
+name = "ifstructs"
+version = "0.1.1"
+authors = ["Gleb Pomykalov <gleb@pomykalov.ru>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/glebpom/rust-netif"
+homepage = "https://github.com/glebpom/rust-netif/ifstructs"
+documentation = "https://docs.rs/ifstructs"
+description = """
+A Rust library with native bindings to unix if* structures
+"""
+
+[badges]
+travis-ci = { repository = "glebpom/rust-ifstructs" }
+
+[dependencies]
+libc = "^0.2"
+cfg-if = "0.1.4"
+
+[dev-dependencies]
+nix = "0.11"

@@ -1,0 +1,18 @@
+[package]
+name = "ifcontrol"
+version = "0.1.0"
+authors = ["Gleb Pomykalov <gleb@pomykalov.ru>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/glebpom/rust-netif"
+homepage = "https://github.com/glebpom/rust-netif/ifcontrol"
+documentation = "https://docs.rs/ifcontrol"
+description = """
+A Rust library to control network interfaces
+"""
+
+[badges]
+travis-ci = { repository = "glebpom/rust-netif" }
+
+[dependencies]
+ifstructs = {path = "../ifstructs"}
