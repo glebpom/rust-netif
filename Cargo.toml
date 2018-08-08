@@ -3,6 +3,13 @@ name = "ifstructs"
 version = "0.1.0"
 authors = ["Gleb Pomykalov <gleb@pomykalov.ru>"]
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/glebpom/rust-ifstructs"
+homepage = "https://github.com/glebpom/rust-ifstructs"
+documentation = "http://doc.rust-lang.org/ifstructs"
+description = """
+A Rust library with native bindings to unix if structures
+"""
 
 [dependencies]
 libc = "^0.2"
