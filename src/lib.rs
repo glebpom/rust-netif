@@ -42,19 +42,24 @@ impl ifreq {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
     use std::io;
-    use std::mem;
-
 
     #[test]
     fn test_get_iface_flags() {
         #[cfg(any(target_os = "linux", target_os = "android"))]
-        let request_code = libc::SIOCGIFFLAGS;
+        let request_code = 0x8913; // #define SIOCGIFFLAGS	0x8913		/* get flags			*/
         #[cfg(not(any(target_os = "linux", target_os = "android")))]
         let request_code = request_code_readwrite!(b'i', 17, mem::size_of::<ifreq>());
 
-        let mut req: ifreq = unsafe { mem::zeroed() };
-        req.set_name("lo0").unwrap();
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
+        let default_iface = "lo0";
+        #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+        let default_iface = "lo";
+
+        let iface_name = env::var("TEST_IFACE").unwrap_or(default_iface.to_owned());
+
+        let mut req = ifreq::from_name(&iface_name).unwrap();
 
         let sock = unsafe { libc::socket(libc::AF_INET, libc::SOCK_DGRAM, 0) };
         if sock < 0 {
@@ -64,7 +69,8 @@ mod tests {
         let res = unsafe { libc::ioctl(sock, request_code, &mut req) };
         if res < 0 {
             panic!(
-                "SIOCGIFFLAGS failed with error {:?}",
+                "SIOCGIFFLAGS failed with error on device '{}': {:?}",
+                iface_name,
                 io::Error::last_os_error()
             );
         }

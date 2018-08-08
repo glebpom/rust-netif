@@ -1,3 +1,5 @@
+use libc;
+
 cfg_if! {
     if #[cfg(target_os = "netbsd")] {
         mod netbsd;

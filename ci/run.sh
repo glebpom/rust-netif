@@ -50,9 +50,9 @@ if [ "$QEMU" != "" ]; then
   # script to run just executes the binary.
   cargo build \
     --target $TARGET \
-    --test main
-  rm $CARGO_TARGET_DIR/$TARGET/debug/main-*.d
-  cp $CARGO_TARGET_DIR/$TARGET/debug/main-* $tmpdir/mount/liifreqbc-test
+    --target-dir target-tests
+  rm $CARGO_TARGET_DIR/target-tests/debug/ifreq-*.d
+  cp $CARGO_TARGET_DIR/target-tests/debug/ifreq-* $tmpdir/mount/ifreq-test
   echo 'exec $1/ifreq-test' > $tmpdir/mount/run.sh
 
   du -sh $tmpdir/mount

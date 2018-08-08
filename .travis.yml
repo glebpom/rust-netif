@@ -77,27 +77,6 @@ matrix:
     - env: TARGET=s390x-unknown-linux-gnu
     - env: TARGET=sparc64-unknown-linux-gnu
 
-    # beta
-    - env: TARGET=x86_64-unknown-linux-gnu NO_ADD=1
-      rust: beta
-    - os: osx
-      env: TARGET=x86_64-apple-darwin NO_ADD=1
-      osx_image: xcode9.4
-      rust: beta
-
-    # nightly
-    - env: TARGET=x86_64-unknown-linux-gnu NO_ADD=1
-      rust: nightly
-    - os: osx
-      env: TARGET=x86_64-apple-darwin NO_ADD=1
-      osx_image: xcode9.4
-      rust: nightly
-    # not available on stable
-    # without --release the build fails
-    # see https://github.com/rust-lang/rust/issues/45417
-    - env: TARGET=x86_64-unknown-linux-gnux32 OPT="--release"
-      rust: nightly
-
     # QEMU based targets that compile in an emulator
     - env: TARGET=x86_64-unknown-freebsd
   allow_failures:
