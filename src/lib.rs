@@ -9,6 +9,8 @@ extern crate nix;
 #[macro_use]
 mod macros;
 
+use std::{io, mem};
+
 cfg_if! {
     if #[cfg(any(target_os = "linux",
                  target_os = "android",
@@ -26,6 +28,14 @@ cfg_if! {
         pub use self::bsd::*;
     } else {
         // Unknown target_os
+    }
+}
+
+impl ifreq {
+    pub fn from_name(name: &str) -> io::Result<ifreq> {
+        let mut req: ifreq = unsafe { mem::zeroed() };
+        req.set_name(name)?;
+        Ok(req)
     }
 }
 
