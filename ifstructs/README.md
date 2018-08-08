@@ -3,7 +3,7 @@ ifstructs
 
 A Rust library with native bindings to unix `if*` structures
 
-[![Build Status](https://travis-ci.org/glebpom/rust-ifstructs.svg?branch=master)](https://travis-ci.org/glebpom/rust-ifstructs)
+[![Build Status](https://travis-ci.org/glebpom/rust-netif.svg?branch=master)](https://travis-ci.org/glebpom/rust-netif)
 [![Latest version](https://img.shields.io/crates/v/ifstructs.svg)](https://crates.io/crates/ifstructs)
 [![Documentation](https://docs.rs/ifstructs/badge.svg)](https://docs.rs/ifstructs)
 ![License](https://img.shields.io/crates/l/ifstructs.svg)
