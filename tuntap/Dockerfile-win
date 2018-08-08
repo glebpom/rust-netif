@@ -1,0 +1,9 @@
+FROM r.lancastr.net/rust-build-windows-x86_64
+
+RUN rustc --version
+
+RUN mkdir -p /build/code
+ADD . /build/code
+WORKDIR /build/code
+
+CMD cargo check --target=${RUST_TARGET} --example test

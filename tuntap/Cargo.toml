@@ -1,0 +1,31 @@
+[package]
+name = "netif-tuntap"
+version = "0.1.0"
+authors = ["Gleb Pomykalov <gleb@pomykalov.ru>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/glebpom/rust-netif"
+homepage = "https://github.com/glebpom/rust-netif/tuntap"
+documentation = "https://docs.rs/netif-tuntap"
+description = """
+A Rust library to manipulate TUN/TAP interfaces on *nix and Windows systems
+"""
+
+[dependencies]
+mio = "0.6.15"
+tokio = "0.1.7"
+futures = "0.1.23"
+bytes = "0.4"
+tokio-io = "0.1.7"
+error-chain = { version = "0.12.0", default-features = true }
+ifcontrol = {path = "../ifcontrol"}
+
+[target.'cfg(target_family="unix")'.dependencies]
+libc = "^0.2"
+nix = "0.11.0"
+ifstructs = {path = "../ifstructs"}
+
+[target.'cfg(target_family="windows")'.dependencies]
+winreg = "0.5.0"
+winapi = {version = "0.3.5", features = ["winbase", "ioapiset", "winioctl"] }
+ipconfig = { git = "https://github.com/glebpom/ipconfig.git", rev = "3e87ff019463433eec5f80c6cce28b16077df3f1"}

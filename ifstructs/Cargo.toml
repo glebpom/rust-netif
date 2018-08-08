@@ -17,6 +17,7 @@ travis-ci = { repository = "glebpom/rust-ifstructs" }
 [dependencies]
 libc = "^0.2"
 cfg-if = "0.1.4"
+bitflags = "1.0.3"
 
 [dev-dependencies]
 nix = "0.11"

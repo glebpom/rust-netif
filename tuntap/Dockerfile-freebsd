@@ -1,0 +1,7 @@
+FROM r.lancastr.net/rust-build-freebsd-x86_64
+
+RUN mkdir -p /build/code
+ADD . /build/code
+WORKDIR /build/code
+
+CMD cargo check

@@ -1,0 +1,17 @@
+[package]
+name = "netif-bpf"
+version = "0.1.0"
+authors = ["Gleb Pomykalov <gleb@pomykalov.ru>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/glebpom/rust-netif"
+homepage = "https://github.com/glebpom/rust-netif/bpf"
+documentation = "https://docs.rs/netif-bpf"
+description = """
+A Rust library to send and receive packages through BPF on BSD systems
+"""
+
+[dependencies]
+libc = "^0.2"
+nix = "0.11.0"
+ifstructs = {path = "../ifstructs"}

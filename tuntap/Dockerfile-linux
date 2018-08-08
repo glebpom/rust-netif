@@ -1,0 +1,10 @@
+FROM rust:1.28.0-stretch
+
+RUN mkdir -p /build/code
+ADD . /build/code
+WORKDIR /build/code
+
+ENV RUST_BACKTRACE full
+ENV RUST_LOG iproute2=trace,rtnetlink=trace,netlink_socket=trace
+
+CMD cargo run --example test

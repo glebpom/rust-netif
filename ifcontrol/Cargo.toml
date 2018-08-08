@@ -15,4 +15,8 @@ A Rust library to control network interfaces
 travis-ci = { repository = "glebpom/rust-netif" }
 
 [dependencies]
+libc = "^0.2"
+cfg-if = "0.1.4"
+nix = "0.11"
 ifstructs = {path = "../ifstructs"}
+error-chain = { version = "0.12.0", default-features = true }

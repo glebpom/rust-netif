@@ -2,4 +2,6 @@
 members = [
     "ifstructs",
     "ifcontrol",
+    "bpf",
+    "tuntap",
 ]
