@@ -3,13 +3,13 @@ extern crate libc;
 #[macro_use]
 extern crate nix;
 
+use ifstructs::ifreq;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io;
-use std::io::{Write};
+use std::io::Write;
 use std::os::unix::io::AsRawFd;
 use std::path::Path;
-use ifstructs::ifreq;
 
 pub struct Bpf {
     iface: String,
@@ -42,7 +42,7 @@ impl Bpf {
             let file = f?;
 
             return Ok(Bpf {
-                inner:file,
+                inner: file,
                 iface: iface.to_owned(),
             });
         }
@@ -74,7 +74,6 @@ impl Clone for Bpf {
         }
     }
 }
-
 
 #[cfg(test)]
 #[cfg(any(target_os = "freebsd", target_os = "macos"))] //TODO: Add and test netbsd, openbsd, dragonfly, ...

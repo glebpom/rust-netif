@@ -1,14 +1,14 @@
 extern crate futures;
-extern crate tokio;
 extern crate netif_tuntap;
+extern crate tokio;
 
 use futures::{Future, Sink, Stream};
+use netif_tuntap::Native;
 use std::io;
 use std::io::Read;
 use std::time::{Duration, Instant};
 use tokio::runtime::current_thread::Runtime;
 use tokio::timer::Delay;
-use netif_tuntap::Native;
 
 fn main() {
     // let lcstr_driver = tuntap::TunTapOsx::new(None, Some(tuntap::DevPath {

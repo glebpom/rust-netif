@@ -33,11 +33,18 @@ impl ::ifreq {
         get_name!(self.ifr_name)
     }
 
-    pub fn get_flags(&self) -> libc::c_short {
-        unsafe { self.ifr_ifru.ifr_flags }
+    /// Get flags
+    pub unsafe fn get_flags(&self) -> ::IfFlags {
+        ::IfFlags::from_bits_truncate(self.ifr_ifru.ifr_flags)
     }
 
-    pub fn set_flags(&mut self, flags: libc::c_short) {
-        self.ifr_ifru.ifr_flags = flags;
+    /// Enable passed flags
+    pub unsafe fn insert_flags(&mut self, flags: ::IfFlags) {
+        self.ifr_ifru.ifr_flags |= flags.bits();
+    }
+
+    /// Enable passed flags
+    pub unsafe fn remove_flags(&mut self, flags: ::IfFlags) {
+        self.ifr_ifru.ifr_flags &= !flags.bits();
     }
 }

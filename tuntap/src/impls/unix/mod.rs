@@ -27,6 +27,7 @@ pub use self::macos::*;
 use bytes::{Bytes, BytesMut, IntoBuf};
 use errors::{Error, ErrorKind, Result};
 use futures::{Async, AsyncSink, Poll, Sink, StartSend, Stream};
+use ifstructs::{ifreq, IfFlags};
 use libc::IFNAMSIZ;
 use mio;
 use mio::event::Evented;
@@ -36,7 +37,6 @@ use std::io::{Read, Write};
 use std::os::unix::io::{AsRawFd, RawFd};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::reactor::PollEvented2;
-use ifstructs::{ifreq, IfFlags};
 
 impl<C> AsRawFd for ::Descriptor<C>
 where
@@ -251,8 +251,7 @@ mod ifaces {
     //     mask: IpAddr,
     //     broadcast_addr: IpAddr,
     // ) -> Result<()> {
-        // let mut req = ifreq::from_name(&name)?;
-
+    // let mut req = ifreq::from_name(&name)?;
 
     //     req.ifra_addr = to_sockaddr(ip);
     //     req.ifra_broadaddr = to_sockaddr(broadcast_addr);
@@ -267,8 +266,7 @@ mod ifaces {
 
     // #[cfg(any(target_os = "macos", target_os = "freebsd"))]
     // pub fn del_addr_from_iface(name: &str, ip: IpAddr) -> Result<()> {
-        // let mut req = ifreq::from_name(&name)?;
-
+    // let mut req = ifreq::from_name(&name)?;
 
     //     req.inner.ifru_addr = to_sockaddr(ip);
 

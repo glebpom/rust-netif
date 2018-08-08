@@ -1,18 +1,18 @@
 use super::linux_common::*;
 use errors::{ErrorKind, Result};
+use ifcontrol::Iface;
+use ifstructs::ifreq;
 use impls::unix::*;
-use libc::{IFF_NO_PI, IFF_TUN, IFNAMSIZ, self};
+use libc::{self, IFF_NO_PI, IFF_TUN, IFNAMSIZ};
 use nix::fcntl;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::mem;
 use std::os::unix::io::AsRawFd;
 use std::path::Path;
 use std::str;
 use std::sync::{Arc, Mutex};
 use tokio::reactor::PollEvented2;
-use ifstructs::ifreq;
-use std::mem;
-use ifcontrol::Iface;
 
 pub struct Native {}
 

@@ -13,11 +13,18 @@ cfg_if! {
 }
 
 impl ::ifreq {
-    pub fn get_flags(&self) -> libc::c_short {
-        unsafe { self.ifr_ifru.ifru_flags[0] }
+    /// Get flags
+    pub unsafe fn get_flags(&self) -> ::IfFlags {
+        ::IfFlags::from_bits_truncate(self.ifr_ifru.ifru_flags[0])
     }
 
-    pub fn set_flags(&mut self, flags: libc::c_short) {
-        unsafe { self.ifr_ifru.ifru_flags[0] = flags };
+    /// Enable passed flags
+    pub unsafe fn insert_flags(&mut self, flags: ::IfFlags) {
+        self.ifr_ifru.ifru_flags[0] |= flags.bits();
+    }
+
+    /// Enable passed flags
+    pub unsafe fn remove_flags(&mut self, flags: ::IfFlags) {
+        self.ifr_ifru.ifru_flags[0] &= !flags.bits();
     }
 }

@@ -1,5 +1,6 @@
 use super::bsd_common::*;
 use errors::{ErrorKind, Result};
+use ifcontrol::Iface;
 use impls::unix::*;
 use libc;
 use libc::EBUSY;
@@ -16,7 +17,6 @@ use std::path::Path;
 use std::str;
 use std::sync::{Arc, Mutex};
 use tokio::reactor::PollEvented2;
-use ifcontrol::Iface;
 
 // #define	SIOCAIFADDR	_IOW('i', 26, struct ifaliasreq)/* add/chg IF alias */
 // ioctl_write_ptr!(iface_add_addr, b'i', 26, ifaliasreq);
@@ -277,7 +277,7 @@ impl TunTapOsx {
         let name = format!("{}{}", dev_name, dev_idx);
 
         match Iface::find_by_name(&name) {
-            Err(e) =>  {
+            Err(e) => {
                 return Some(Err(e.into()));
             }
             Ok(iface) => {

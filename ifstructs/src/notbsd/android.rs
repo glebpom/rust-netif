@@ -59,11 +59,19 @@ impl ::ifreq {
     pub fn get_name(&self) -> io::Result<String> {
         unsafe { get_name!(self.ifrn_ifrn.ifrn_name) }
     }
-    pub fn get_flags(&self) -> libc::c_short {
-        unsafe { self.ifrn_ifru.ifru_flags }
+
+    /// Get flags
+    pub unsafe fn get_flags(&self) -> ::IfFlags {
+        ::IfFlags::from_bits_truncate(self.ifrn_ifrn.ifrn_name)
     }
 
-    pub fn set_flags(&mut self, flags: libc::c_short) {
-        self.ifrn_ifru.ifru_flags = flags;
+    /// Enable passed flags
+    pub unsafe fn insert_flags(&mut self, flags: ::IfFlags) {
+        self.ifrn_ifrn.ifrn_name |= flags.bits();
+    }
+
+    /// Enable passed flags
+    pub unsafe fn remove_flags(&mut self, flags: ::IfFlags) {
+        self.ifrn_ifrn.ifrn_name &= !flags.bits();
     }
 }

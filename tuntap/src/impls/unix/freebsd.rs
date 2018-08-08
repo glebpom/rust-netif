@@ -1,5 +1,6 @@
 use super::bsd_common::*;
 use errors::{ErrorKind, Result};
+use ifcontrol::Iface;
 use impls::unix::*;
 use libc::{
     c_char, c_int, c_short, c_uchar, c_uint, c_ulong, c_ushort, c_void, dev_t, mode_t, size_t,
@@ -15,7 +16,6 @@ use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tokio::reactor::PollEvented2;
-use ifcontrol::Iface;
 
 pub struct Native {}
 

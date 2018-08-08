@@ -57,15 +57,15 @@ mod tests {
             _ => panic!("bad error type"),
         }
     }
- 
+
     #[test]
     fn test_found() {
         match Iface::find_by_name(default_iface) {
-            Ok(_) => {},
+            Ok(_) => {}
             _ => panic!("bad error type"),
         }
     }
- 
+
     #[test]
     fn test_is_up() {
         let iface = Iface::find_by_name(default_iface).unwrap();

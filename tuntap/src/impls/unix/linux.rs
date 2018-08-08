@@ -1,17 +1,17 @@
 use super::linux_common::*;
 use errors::{ErrorKind, Result};
+use ifcontrol::Iface;
 use impls::unix::*;
 use libc::{c_short, c_uchar, IFF_MULTI_QUEUE, IFF_NO_PI, IFF_TAP, IFF_TUN, IFNAMSIZ};
 use nix::fcntl;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::mem;
 use std::os::unix::io::AsRawFd;
 use std::path::Path;
 use std::str;
 use std::sync::{Arc, Mutex};
 use tokio::reactor::PollEvented2;
-use std::mem;
-use ifcontrol::Iface;
 
 pub struct Native {}
 
@@ -109,7 +109,7 @@ impl Native {
         let file = OpenOptions::new().read(true).write(true).open(&path)?;
 
         let mut req = ifreq::from_name(name)?;
-        
+
         req.set_flags(flags);
 
         unsafe { tun_set_iff(file.as_raw_fd(), &mut req as *mut _ as *mut _) }?;

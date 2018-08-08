@@ -9,4 +9,3 @@ cfg_if! {
         // Unknown target_os
     }
 }
-

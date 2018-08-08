@@ -1,6 +1,6 @@
+use ifstructs::ifreq;
 use impls::unix::*;
 use libc;
-use ifstructs::ifreq;
 
 ioctl_write_ptr!(tun_set_iff, b'T', 202, libc::c_int);
 // #define SIOCGIFFLAGS	0x8913		/* get flags			*/
