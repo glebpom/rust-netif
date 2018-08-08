@@ -1,7 +1,7 @@
 ifstructs
 =========
 
-A Rust library with native bindings to unix `if` structures
+A Rust library with native bindings to unix `if*` structures
 
 [![Build Status](https://travis-ci.org/glebpom/rust-ifstructs.svg?branch=master)](https://travis-ci.org/glebpom/rust-ifstructs)
 [![Latest version](https://img.shields.io/crates/v/ifstructs.svg)](https://crates.io/crates/ifstructs)
