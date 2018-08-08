@@ -49,7 +49,6 @@ if [ "$QEMU" != "" ]; then
   # Do the standard rigamarole of cross-compiling an executable and then the
   # script to run just executes the binary.
   cargo build \
-    --manifest-path ifreq-test/Cargo.toml \
     --target $TARGET \
     --test main
   rm $CARGO_TARGET_DIR/$TARGET/debug/main-*.d
@@ -89,7 +88,7 @@ fi
 # Building with --no-default-features is currently broken on rumprun because we
 # need cfg(target_vendor), which is currently unstable.
 if [ "$TARGET" != "x86_64-rumprun-netbsd" ]; then
-  cargo test $opt --no-default-features --manifest-path ifreq-test/Cargo.toml --target $TARGET
+  cargo test $opt --no-default-features --target $TARGET
 fi
 
-exec cargo test $opt --manifest-path ifreq-test/Cargo.toml --target $TARGET
+exec cargo test $opt --target $TARGET
