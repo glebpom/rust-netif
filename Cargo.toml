@@ -8,7 +8,7 @@ repository = "https://github.com/glebpom/rust-ifstructs"
 homepage = "https://github.com/glebpom/rust-ifstructs"
 documentation = "http://doc.rust-lang.org/ifstructs"
 description = """
-A Rust library with native bindings to unix if structures
+A Rust library with native bindings to unix if* structures
 """
 
 [dependencies]
