@@ -49,7 +49,7 @@ if [ "$QEMU" != "" ]; then
   # Do the standard rigamarole of cross-compiling an executable and then the
   # script to run just executes the binary.
   cargo build \
-    --tests
+    --tests \
     --target $TARGET
   rm $CARGO_TARGET_DIR/target/debug/ifstructs-*.d
   cp $CARGO_TARGET_DIR/target/debug/ifstructs-* $tmpdir/mount/ifstructs-test
