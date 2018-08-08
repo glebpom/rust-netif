@@ -29,7 +29,9 @@ matrix:
     #   rust: nightly
     #   script: sh ci/dox.sh
 
-    # stable compat
+    # QEMU based targets that compile in an emulator
+    - env: TARGET=x86_64-unknown-freebsd
+
     - env: TARGET=x86_64-unknown-linux-gnu NO_ADD=1
     - env: TARGET=i686-unknown-linux-gnu
     - os: osx
@@ -73,9 +75,6 @@ matrix:
     - env: TARGET=x86_64-rumprun-netbsd
     - env: TARGET=s390x-unknown-linux-gnu
     - env: TARGET=sparc64-unknown-linux-gnu
-
-    # QEMU based targets that compile in an emulator
-    - env: TARGET=x86_64-unknown-freebsd
   allow_failures:
     - env: TARGET=aarch64-unknown-linux-musl
     - env: TARGET=x86_64-rumprun-netbsd

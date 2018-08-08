@@ -51,8 +51,8 @@ if [ "$QEMU" != "" ]; then
   cargo build \
     --tests \
     --target $TARGET
-  rm $CARGO_TARGET_DIR/target/debug/ifstructs-*.d
-  cp $CARGO_TARGET_DIR/target/debug/ifstructs-* $tmpdir/mount/ifstructs-test
+  rm $CARGO_TARGET_DIR/debug/ifstructs-*.d
+  cp $CARGO_TARGET_DIR/debug/ifstructs-* $tmpdir/mount/ifstructs-test
   echo 'exec $1/ifstructs-test' > $tmpdir/mount/run.sh
 
   du -sh $tmpdir/mount
