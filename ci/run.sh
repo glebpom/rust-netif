@@ -49,10 +49,10 @@ if [ "$QEMU" != "" ]; then
   # Do the standard rigamarole of cross-compiling an executable and then the
   # script to run just executes the binary.
   cargo build \
-    --target $TARGET \
-    --target-dir target-tests
-  rm $CARGO_TARGET_DIR/target-tests/debug/ifreq-*.d
-  cp $CARGO_TARGET_DIR/target-tests/debug/ifreq-* $tmpdir/mount/ifreq-test
+    --tests
+    --target $TARGET
+  rm $CARGO_TARGET_DIR/target/debug/ifreq-*.d
+  cp $CARGO_TARGET_DIR/target/debug/ifreq-* $tmpdir/mount/ifreq-test
   echo 'exec $1/ifreq-test' > $tmpdir/mount/run.sh
 
   du -sh $tmpdir/mount

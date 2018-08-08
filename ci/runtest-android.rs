@@ -34,8 +34,7 @@ fn main() {
              String::from_utf8_lossy(&output.stderr));
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut lines = stdout.lines().filter(|l| l.starts_with("PASSED "));
-    if !lines.any(|l| l.contains(" tests")) {
+    if !stdout.lines().any(|l| l.contains("test result: ok")) {
         panic!("failed to find successful test run");
     }
 }

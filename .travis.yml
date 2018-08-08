@@ -50,7 +50,6 @@ matrix:
     - env: TARGET=arm-unknown-linux-gnueabihf
     - env: TARGET=arm-unknown-linux-musleabihf
     - env: TARGET=aarch64-unknown-linux-gnu
-    - env: TARGET=aarch64-unknown-linux-musl
     - os: osx
       osx_image: xcode9.4
       env: TARGET=i386-apple-ios
@@ -65,7 +64,6 @@ matrix:
            RUSTFLAGS=-Clink-arg=-mios-simulator-version-min=7.0
       before_install:
         rustc ./ci/ios/deploy_and_run_on_ios_simulator.rs -o $HOME/runtest
-    - env: TARGET=x86_64-rumprun-netbsd
     - env: TARGET=powerpc-unknown-linux-gnu
     - env: TARGET=powerpc64-unknown-linux-gnu
     - env: TARGET=powerpc64le-unknown-linux-gnu
@@ -74,12 +72,14 @@ matrix:
     - env: TARGET=mips64-unknown-linux-gnuabi64
     - env: TARGET=mips64el-unknown-linux-gnuabi64
     - env: TARGET=mips-unknown-linux-gnu
-    - env: TARGET=s390x-unknown-linux-gnu
-    - env: TARGET=sparc64-unknown-linux-gnu
 
     # QEMU based targets that compile in an emulator
     - env: TARGET=x86_64-unknown-freebsd
   allow_failures:
+    - env: TARGET=aarch64-unknown-linux-musl
+    - env: TARGET=x86_64-rumprun-netbsd
+    - env: TARGET=s390x-unknown-linux-gnu
+    - env: TARGET=sparc64-unknown-linux-gnu
     - env: TARGET=i386-apple-ios
            CARGO_TARGET_I386_APPLE_IOS_RUNNER=$HOME/runtest
            RUSTFLAGS=-Clink-arg=-mios-simulator-version-min=7.0
