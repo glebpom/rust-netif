@@ -7,6 +7,8 @@ services:
 install:
   - if [ -z "$NO_ADD" ]; then rustup target add $TARGET; fi
 script:
+  # at first, show all available links
+  - ifconfig || ip link || true
   - cargo build $OPT
   - cargo build $OPT --no-default-features
   - cargo generate-lockfile
