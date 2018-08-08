@@ -23,3 +23,12 @@ pub union ifr_ifru {
     pub ifru_data: *mut libc::c_void,
     pub ifru_b: ifru_b,
 }
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct ifaliasreq {
+    pub ifra_name: [u8; libc::IFNAMSIZ],
+    pub ifra_addr: libc::sockaddr,
+    pub ifra_broadaddr: libc::sockaddr,
+    pub ifra_mask: libc::sockaddr,
+}

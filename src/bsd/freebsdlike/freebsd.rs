@@ -37,3 +37,14 @@ pub union ifr_ifru {
     pub ifru_fib: libc::c_uint,
     pub ifru_vlan_pcp: libc::c_uchar,
 }
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct ifaliasreq {
+    pub ifra_name: [u8; libc::IFNAMSIZ],
+    pub ifra_addr: libc::sockaddr,
+    pub ifra_broadaddr: libc::sockaddr,
+    pub ifra_mask: libc::sockaddr,
+    pub ifra_vhid: libc::c_int,
+}
+

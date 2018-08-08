@@ -16,3 +16,12 @@ pub union ifr_ifru {
     pub ifru_pollcpu: libc::c_int,
     pub ifru_tsolen: libc::c_int,
 }
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct ifaliasreq {
+    pub ifra_name: [u8; libc::IFNAMSIZ],
+    pub ifra_addr: libc::sockaddr,
+    pub ifra_broadaddr: libc::sockaddr,
+    pub ifra_mask: libc::sockaddr,
+}

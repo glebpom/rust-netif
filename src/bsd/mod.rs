@@ -35,3 +35,14 @@ impl ifreq {
         get_name!(self.ifr_name)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::mem;
+    
+    #[test]
+    fn test_ifaliasreq() {
+        let _req: ifaliasreq = unsafe { mem::zeroed() };
+    }
+}
