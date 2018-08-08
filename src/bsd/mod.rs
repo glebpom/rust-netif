@@ -1,4 +1,5 @@
 use libc;
+use std::io;
 
 cfg_if! {
     if #[cfg(any(target_os = "macos", target_os = "ios"))] {
@@ -23,4 +24,14 @@ pub type caddr_t = *mut libc::c_char;
 pub struct ifreq {
     pub ifr_name: [u8; libc::IFNAMSIZ],
     pub ifr_ifru: ifr_ifru,
+}
+
+impl ifreq {
+    pub fn set_name(&mut self, name: &str) -> io::Result<()> {
+        set_name!(self.ifr_name, name)
+    }
+
+    pub fn get_name(&self) -> io::Result<String> {
+        get_name!(self.ifr_name)
+    }
 }

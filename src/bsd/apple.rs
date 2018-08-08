@@ -13,3 +13,13 @@ pub union ifr_ifru {
     pub ifru_media: libc::c_int,
     pub ifru_data: ::caddr_t,
 }
+
+impl ::ifreq {
+    pub fn get_flags(&self) -> libc::c_short {
+        unsafe { self.ifr_ifru.ifru_flags }
+    }
+
+    pub fn set_flags(&mut self, flags: libc::c_short) {
+        self.ifr_ifru.ifru_flags = flags;
+    }
+}

@@ -2,6 +2,13 @@ extern crate libc;
 #[macro_use]
 extern crate cfg_if;
 
+#[cfg(test)]
+#[macro_use]
+extern crate nix;
+
+#[macro_use]
+mod macros;
+
 cfg_if! {
     if #[cfg(any(target_os = "linux",
                  target_os = "android",
@@ -19,5 +26,40 @@ cfg_if! {
         pub use self::bsd::*;
     } else {
         // Unknown target_os
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io;
+    use std::mem;
+
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    const SIOCGIFFLAGS: libc::c_ulong = libc::SIOCGIFFLAGS;
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    const SIOCGIFFLAGS: libc::c_ulong = request_code_readwrite!(b'i', 17, mem::size_of::<ifreq>());
+
+    #[test]
+    fn test_get_iface_flags() {
+        let mut req: ifreq = unsafe { mem::zeroed() };
+        req.set_name("lo0").unwrap();
+
+        let sock = unsafe { libc::socket(libc::AF_INET, libc::SOCK_DGRAM, 0) };
+        if sock < 0 {
+            panic!("Socket error {:?}", io::Error::last_os_error());
+        }
+
+        let res = unsafe { libc::ioctl(sock, SIOCGIFFLAGS, &mut req) };
+        if res < 0 {
+            panic!(
+                "SIOCGIFFLAGS failed with error {:?}",
+                io::Error::last_os_error()
+            );
+        }
+
+        let flags = req.get_flags();
+
+        assert_ne!(i64::from(flags) & i64::from(libc::IFF_UP), 0);
     }
 }

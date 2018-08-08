@@ -1,4 +1,5 @@
 use libc;
+use std::io;
 
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -48,4 +49,21 @@ pub union ifr_ifrn {
 pub struct ifreq {
     pub ifrn_ifrn: ifr_ifrn,
     pub ifrn_ifru: ifrn_ifru,
+}
+
+impl ::ifreq {
+    pub fn set_name(&mut self, name: &str) -> io::Result<()> {
+        unsafe { set_name!(self.ifrn_ifrn.ifrn_name, name) }
+    }
+
+    pub fn get_name(&self) -> io::Result<String> {
+        unsafe { get_name!(self.ifrn_ifrn.ifrn_name) }
+    }
+    pub fn get_flags(&self) -> libc::c_short {
+        unsafe { self.ifrn_ifru.ifru_flags }
+    }
+
+    pub fn set_flags(&mut self, flags: libc::c_short) {
+        self.ifrn_ifru.ifru_flags = flags;
+    }
 }

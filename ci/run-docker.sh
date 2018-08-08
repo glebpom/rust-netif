@@ -6,7 +6,7 @@ set -ex
 run() {
     echo $1
     # use -f so we can use ci/ as build context
-    docker build -t libc -f ci/docker/$1/Dockerfile ci/
+    docker build -t ifreq -f ci/docker/$1/Dockerfile ci/
     mkdir -p target
     if [ -w /dev/kvm ]; then
       kvm="--volume /dev/kvm:/dev/kvm"
@@ -23,7 +23,7 @@ run() {
       --volume `pwd`/target:/checkout/target \
       --env CARGO_TARGET_DIR=/checkout/target \
       --workdir /checkout \
-      libc \
+      ifreq \
       ci/run.sh $1
 }
 

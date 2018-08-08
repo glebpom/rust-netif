@@ -9,3 +9,13 @@ cfg_if! {
         // Unknown target_os
     }
 }
+
+impl ::ifreq {
+    pub fn get_flags(&self) -> libc::c_short {
+        unsafe { self.ifr_ifru.ifru_flags }
+    }
+
+    pub fn set_flags(&mut self, flags: libc::c_short) {
+        self.ifr_ifru.ifru_flags = flags;
+    }
+}

@@ -43,24 +43,24 @@ if [ "$QEMU" != "" ]; then
   # Create a mount a fresh new filesystem image that we'll later pass to QEMU.
   # This will have a `run.sh` script will which use the artifacts inside to run
   # on the host.
-  rm -f $tmpdir/libc-test.img
+  rm -f $tmpdir/ifreq-test.img
   mkdir $tmpdir/mount
 
   # Do the standard rigamarole of cross-compiling an executable and then the
   # script to run just executes the binary.
   cargo build \
-    --manifest-path libc-test/Cargo.toml \
+    --manifest-path ifreq-test/Cargo.toml \
     --target $TARGET \
     --test main
   rm $CARGO_TARGET_DIR/$TARGET/debug/main-*.d
-  cp $CARGO_TARGET_DIR/$TARGET/debug/main-* $tmpdir/mount/libc-test
-  echo 'exec $1/libc-test' > $tmpdir/mount/run.sh
+  cp $CARGO_TARGET_DIR/$TARGET/debug/main-* $tmpdir/mount/liifreqbc-test
+  echo 'exec $1/ifreq-test' > $tmpdir/mount/run.sh
 
   du -sh $tmpdir/mount
   genext2fs \
       --root $tmpdir/mount \
       --size-in-blocks 100000 \
-      $tmpdir/libc-test.img
+      $tmpdir/ifreq-test.img
 
   # Pass -snapshot to prevent tampering with the disk images, this helps when
   # running this script in development. The two drives are then passed next,
@@ -71,7 +71,7 @@ if [ "$QEMU" != "" ]; then
     -m 1024 \
     -snapshot \
     -drive if=virtio,file=$tmpdir/$qemufile \
-    -drive if=virtio,file=$tmpdir/libc-test.img \
+    -drive if=virtio,file=$tmpdir/ifreq-test.img \
     -net nic,model=virtio \
     -net user \
     -nographic \
@@ -89,10 +89,7 @@ fi
 # Building with --no-default-features is currently broken on rumprun because we
 # need cfg(target_vendor), which is currently unstable.
 if [ "$TARGET" != "x86_64-rumprun-netbsd" ]; then
-  cargo test $opt --no-default-features --manifest-path libc-test/Cargo.toml --target $TARGET
+  cargo test $opt --no-default-features --manifest-path ifreq-test/Cargo.toml --target $TARGET
 fi
-# Test the #[repr(align(x))] feature if this is building on Rust >= 1.25
-if [ $(rustc --version | sed -E 's/^rustc 1\.([0-9]*)\..*/\1/') -ge 25 ]; then
-  cargo test $opt --features align --manifest-path libc-test/Cargo.toml --target $TARGET
-fi
-exec cargo test $opt --manifest-path libc-test/Cargo.toml --target $TARGET
+
+exec cargo test $opt --manifest-path ifreq-test/Cargo.toml --target $TARGET

@@ -11,7 +11,7 @@ pub union ifr_ifru {
     pub ifru_mtu: libc::c_int,
     pub ifru_phys: libc::c_int,
     pub ifru_media: libc::c_int,
-    pub ifru_data: *mut libc::c:void,
+    pub ifru_data: *mut libc::c_void,
     pub ifru_cap: [libc::c_int; 2],
     pub ifru_pollcpu: libc::c_int,
     pub ifru_tsolen: libc::c_int,

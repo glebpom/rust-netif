@@ -1,7 +1,14 @@
-#[cfg(target_os = "android")]
-mod android;
-#[cfg(target_os = "linux")]
-mod linux;
+cfg_if! {
+    if #[cfg(target_os = "android")] {
+        mod android;
+        pub use self::android::*;
+    } else if #[cfg(target_os = "linux")] {
+        mod linux;
+        pub use self::linux::*;
+    } else {
+        // Unknown target_os
+    }
+}
 
 use libc;
 
