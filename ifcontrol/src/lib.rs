@@ -1,4 +1,5 @@
 extern crate eui48;
+#[cfg(unix)]
 extern crate ifstructs;
 extern crate libc;
 #[macro_use]
@@ -25,6 +26,7 @@ pub struct Iface {
     //TODO: add flags
 }
 
+#[cfg(unix)]
 impl Iface {
     #[cfg(not(target_os = "android"))]
     pub fn all() -> Result<Vec<Iface>> {
