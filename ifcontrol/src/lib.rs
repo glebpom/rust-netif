@@ -16,27 +16,71 @@ mod impls;
 pub use errors::{Error, ErrorKind, Result};
 
 use eui48::MacAddress;
+#[cfg(unix)]
+use ifstructs::IfFlags;
 use std::net::IpAddr;
 
-#[derive(Debug, Clone)]
+pub trait IfaceType: ::std::fmt::Debug {
+    fn hw_addr(&self) -> Option<MacAddress>;
+}
+
+#[derive(Debug)]
+pub struct Ethernet {
+    hw_addr: MacAddress,
+}
+impl IfaceType for Ethernet {
+    fn hw_addr(&self) -> Option<MacAddress> {
+        Some(self.hw_addr)
+    }
+}
+
+#[derive(Debug)]
+pub struct Bridge {
+    hw_addr: MacAddress,
+}
+impl IfaceType for Bridge {
+    fn hw_addr(&self) -> Option<MacAddress> {
+        Some(self.hw_addr)
+    }
+}
+
+#[derive(Debug)]
+pub struct Loopback {}
+impl IfaceType for Loopback {
+    fn hw_addr(&self) -> Option<MacAddress> {
+        None
+    }
+}
+
+#[derive(Debug)]
+pub struct Unknown {
+    hw_addr: Option<MacAddress>,
+}
+impl IfaceType for Unknown {
+    fn hw_addr(&self) -> Option<MacAddress> {
+        self.hw_addr
+    }
+}
+
+#[derive(Debug)]
 pub struct Iface {
     ifname: String,
-    hw_addr: Option<MacAddress>,
     ip_addrs: Vec<IpAddr>,
-    //TODO: add flags
+    flags: IfFlags,
+    details: Box<IfaceType>,
 }
 
 #[cfg(unix)]
 impl Iface {
-    #[cfg(not(target_os = "android"))]
+    #[cfg(all(unix, not(target_os = "android")))]
     pub fn all() -> Result<Vec<Iface>> {
-        use std::collections::{HashMap, HashSet};
+        use std::collections::HashMap;
 
-        let mut ifnames = HashSet::new();
         let mut hw = HashMap::new();
         let mut ips = HashMap::new();
+        let mut flags = HashMap::new();
         for ifaddr in impls::get_all_addresses()? {
-            ifnames.insert(ifaddr.interface_name.clone());
+            flags.insert(ifaddr.interface_name.clone(), ifaddr.flags);
             if let Some(addr) = ifaddr.address {
                 match addr {
                     nix::sys::socket::SockAddr::Inet(inet) => {
@@ -50,29 +94,43 @@ impl Iface {
                 }
             }
         }
-        let mut ifaces = vec![];
-        for iface_name in ifnames {
+        let mut ifaces = Vec::new();
+        for (ifname, flags) in flags {
+            let ip_addrs = ips.get(&ifname)
+                .cloned()
+                .unwrap_or_default()
+                .iter()
+                .map(|inet_addr| inet_addr.to_std().ip())
+                .collect();
+            let hw_addr = hw.get(&ifname).map(|addr| MacAddress::new(addr.addr()));
+            let details: Box<dyn IfaceType> = if flags.contains(IfFlags::IFF_LOOPBACK) {
+                Box::new(Loopback {})
+            } else if let Some(hw_addr) = hw_addr {
+                Box::new(Ethernet {
+                    hw_addr,
+                })
+            } else {
+                Box::new(Unknown {
+                    hw_addr,
+                })
+            };
+
             let iface = Iface {
-                hw_addr: hw.get(&iface_name).map(|addr| MacAddress::new(addr.addr())),
-                ip_addrs: ips.get(&iface_name)
-                    .cloned()
-                    .unwrap_or_default()
-                    .iter()
-                    .map(|inet_addr| inet_addr.to_std().ip())
-                    .collect(),
-                ifname: iface_name,
+                ip_addrs,
+                ifname,
+                details,
+                flags,
             };
             ifaces.push(iface);
         }
         Ok(ifaces)
     }
 
-    #[cfg(not(target_os = "android"))]
+    #[cfg(all(unix, not(target_os = "android")))]
     pub fn find_by_name(ifname: &str) -> Result<Iface> {
-        let iface = Iface::all()?
-            .iter()
-            .find(|&x| x.ifname == ifname)
-            .cloned()
+        let iface = Self::all()?
+            .into_iter()
+            .find(|x| x.ifname == ifname)
             .ok_or(Error::from(ErrorKind::IfaceNotFound))?;
         let ctl_fd = impls::new_control_socket()?;
         impls::get_iface_ifreq(&ctl_fd, &iface.ifname)?;
@@ -81,13 +139,11 @@ impl Iface {
 
     #[cfg(target_os = "android")]
     pub fn find_by_name(ifname: &str) -> Result<Iface> {
-        let ctl_fd = impls::new_control_socket()?;
-        impls::get_iface_ifreq(&ctl_fd, ifname)?;
-        Ok(Iface {
-            ifname: ifname.to_owned(),
-            hw_addr: None,
-            ip_addrs: vec![],
-        })
+        Err(ErrorKind::IfaceNotFound.into())
+    }
+
+    pub fn hw_addr(&self) -> Option<MacAddress> {
+        self.details.hw_addr()
     }
 
     pub fn is_up(&self) -> Result<bool> {
@@ -110,14 +166,11 @@ impl Iface {
         impls::set_promiscuous_mode(&ctl_fd, &self.ifname, is_enable)
     }
 
-    pub fn hw_addr(&self) -> Option<MacAddress> {
-        self.hw_addr
-    }
-
     pub fn refresh(&mut self) -> Result<()> {
-        let new_iface = Iface::find_by_name(&self.ifname)?;
-        self.hw_addr = new_iface.hw_addr;
+        let new_iface = Self::find_by_name(&self.ifname)?;
         self.ip_addrs = new_iface.ip_addrs;
+        self.flags = new_iface.flags;
+        self.details = new_iface.details;
         Ok(())
     }
 
@@ -203,5 +256,4 @@ mod tests {
     fn test_list_all() {
         Iface::all().unwrap();
     }
-
 }

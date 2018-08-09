@@ -150,20 +150,6 @@ impl Native {
 
         Iface::find_by_name(&name)?.up()?;
 
-        // add_addr_to_iface(
-        //     &name,
-        //     "192.168.33.1".parse().unwrap(),
-        //     "255.255.255.0".parse().unwrap(),
-        //     "192.168.33.255".parse().unwrap(),
-        // )?;
-
-        // println!("Waiting before deletion...");
-
-        // thread::sleep_ms(10000);
-
-        // del_addr_from_iface(&name, "192.168.33.1".parse().unwrap())?;
-        // println!("Deleted...");
-
         Ok((file, name))
     }
 }
