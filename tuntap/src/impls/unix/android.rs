@@ -69,7 +69,8 @@ impl Native {
 
         let mut req = ifreq::from_name(name.unwrap_or(""))?;
 
-        req.set_flags((IFF_NO_PI | IFF_TUN) as libc::c_short);
+        unsafe { req.insert_flags(IfFlags::IFF_NO_PI) };
+        unsafe { req.insert_flags(IfFlags::IFF_TUN) };
 
         unsafe { tun_set_iff(file.as_raw_fd(), &mut req as *mut _ as *mut _) }?;
 

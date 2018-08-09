@@ -62,16 +62,25 @@ impl ::ifreq {
 
     /// Get flags
     pub unsafe fn get_flags(&self) -> ::IfFlags {
-        ::IfFlags::from_bits_truncate(self.ifrn_ifrn.ifrn_name)
+        ::IfFlags::from_bits_truncate(self.ifrn_ifru.ifru_flags)
     }
 
     /// Enable passed flags
     pub unsafe fn insert_flags(&mut self, flags: ::IfFlags) {
-        self.ifrn_ifrn.ifrn_name |= flags.bits();
+        self.ifrn_ifru.ifru_flags |= flags.bits();
     }
 
     /// Enable passed flags
     pub unsafe fn remove_flags(&mut self, flags: ::IfFlags) {
-        self.ifrn_ifrn.ifrn_name &= !flags.bits();
+        self.ifrn_ifru.ifru_flags &= !flags.bits();
+    }
+}
+
+bitflags! {
+    pub struct IfFlags: libc::c_short {
+        const IFF_RUNNING = libc::IFF_RUNNING as libc::c_short;
+        const IFF_UP = libc::IFF_UP as libc::c_short;
+        const IFF_NO_PI = libc::IFF_NO_PI as libc::c_short;
+        const IFF_TUN = libc::IFF_TUN as libc::c_short;
     }
 }

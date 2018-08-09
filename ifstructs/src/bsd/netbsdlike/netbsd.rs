@@ -32,3 +32,10 @@ pub struct ifaliasreq {
     pub ifra_broadaddr: libc::sockaddr,
     pub ifra_mask: libc::sockaddr,
 }
+
+bitflags! {
+    pub struct IfFlags: libc::c_short {
+        const IFF_RUNNING = libc::IFF_RUNNING as libc::c_short;
+        const IFF_UP = libc::IFF_UP as libc::c_short;
+    }
+}

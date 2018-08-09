@@ -33,13 +33,6 @@ cfg_if! {
     }
 }
 
-bitflags! {
-    pub struct IfFlags: libc::c_short {
-        const IFF_RUNNING = libc::IFF_RUNNING as libc::c_short;
-        const IFF_UP = libc::IFF_UP as libc::c_short;
-    }
-}
-
 impl ifreq {
     pub fn from_name(name: &str) -> io::Result<ifreq> {
         let mut req: ifreq = unsafe { mem::zeroed() };
@@ -84,8 +77,8 @@ mod tests {
             );
         }
 
-        let flags = req.get_flags();
+        let flags = unsafe { req.get_flags() };
 
-        assert_ne!(i64::from(flags) & i64::from(libc::IFF_UP), 0);
+        assert!(flags.contains(IfFlags::IFF_UP));
     }
 }

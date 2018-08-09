@@ -28,3 +28,10 @@ impl ::ifreq {
         self.ifr_ifru.ifru_flags[0] &= !flags.bits();
     }
 }
+
+bitflags! {
+    pub struct IfFlags: libc::c_short {
+        const IFF_RUNNING = libc::IFF_RUNNING as libc::c_short;
+        const IFF_UP = libc::IFF_UP as libc::c_short;
+    }
+}

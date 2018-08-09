@@ -97,3 +97,8 @@ pub fn down<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
     unsafe { iface_set_flags(ctl_fd.as_raw_fd(), &mut req) }?;
     Ok(())
 }
+
+#[cfg(not(target_os = "android"))]
+pub fn get_all_addresses() -> Result<nix::ifaddrs::InterfaceAddressIterator> {
+    Ok(nix::ifaddrs::getifaddrs()?)
+}

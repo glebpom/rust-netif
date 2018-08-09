@@ -21,3 +21,4 @@ ioctl_readwrite!(iface_get_flags, b'i', 17, ifreq);
 
 // #define	SIOCSIFFLAGS	 _IOW('i', 16, struct ifreq)	/* set ifnet flags */
 ioctl_write_ptr!(iface_set_flags, b'i', 16, ifreq);
+

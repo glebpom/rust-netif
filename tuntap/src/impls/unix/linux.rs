@@ -103,14 +103,14 @@ impl Native {
 }
 
 impl Native {
-    fn create_queue(&self, name: &str, flags: c_short, is_async: bool) -> Result<(File, String)> {
+    fn create_queue(&self, name: &str, flags: IfFlags, is_async: bool) -> Result<(File, String)> {
         let path = Path::new("/dev/net/tun");
 
         let file = OpenOptions::new().read(true).write(true).open(&path)?;
 
         let mut req = ifreq::from_name(name)?;
 
-        req.set_flags(flags);
+        unsafe { req.insert_flags(flags) };
 
         unsafe { tun_set_iff(file.as_raw_fd(), &mut req as *mut _ as *mut _) }?;
 
@@ -143,13 +143,13 @@ impl Native {
             ));
         }
 
-        let mut flags = IFF_NO_PI;
-        flags |= match iface_type {
-            ::VirtualInterfaceType::Tun => IFF_TUN,
-            ::VirtualInterfaceType::Tap => IFF_TAP,
-        };
+        let mut flags = IfFlags::IFF_NO_PI;
+        flags.insert(match iface_type {
+            ::VirtualInterfaceType::Tun => IfFlags::IFF_TUN,
+            ::VirtualInterfaceType::Tap => IfFlags::IFF_TAP,
+        });
         if queues > 1 {
-            flags |= IFF_MULTI_QUEUE;
+            flags.insert(IfFlags::IFF_MULTI_QUEUE);
         };
 
         let mut files = vec![];

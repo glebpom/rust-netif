@@ -48,3 +48,15 @@ impl ::ifreq {
         self.ifr_ifru.ifr_flags &= !flags.bits();
     }
 }
+
+bitflags! {
+    pub struct IfFlags: libc::c_short {
+        const IFF_RUNNING = libc::IFF_RUNNING as libc::c_short;
+        const IFF_UP = libc::IFF_UP as libc::c_short;
+        const IFF_NO_PI = libc::IFF_NO_PI as libc::c_short;
+        const IFF_MULTI_QUEUE = libc::IFF_MULTI_QUEUE as libc::c_short;
+        const IFF_TUN = libc::IFF_TUN as libc::c_short;
+        const IFF_TAP = libc::IFF_TAP as libc::c_short;
+    }
+}
+
