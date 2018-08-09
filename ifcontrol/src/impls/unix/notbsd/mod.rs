@@ -17,5 +17,5 @@ use ifstructs::ifreq;
 ioctl_readwrite_bad!(iface_get_flags, libc::SIOCGIFFLAGS, ifreq);
 // #define SIOCSIFFLAGS	0x8914		/* set flags			*/
 ioctl_write_ptr_bad!(iface_set_flags, libc::SIOCSIFFLAGS, ifreq);
-// #define SIOCGIFHWADDR	0x8927
-ioctl_write_ptr_bad!(iface_get_hwaddr, libc::SIOCGIFHWADDR, ifreq);
+// // #define SIOCGIFHWADDR	0x8927
+// ioctl_write_ptr_bad!(iface_get_hwaddr, libc::SIOCGIFHWADDR, ifreq);

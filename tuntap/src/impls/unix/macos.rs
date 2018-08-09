@@ -1,4 +1,3 @@
-use super::bsd_common::*;
 use errors::{ErrorKind, Result};
 use ifcontrol::Iface;
 use impls::unix::*;

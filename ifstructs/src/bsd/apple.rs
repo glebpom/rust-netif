@@ -17,17 +17,17 @@ pub union ifr_ifru {
 impl ::ifreq {
     /// Get flags
     pub unsafe fn get_flags(&self) -> ::IfFlags {
-        ::IfFlags::from_bits_truncate(self.ifr_ifru.ifru_flags)
+        ::IfFlags::from_bits_truncate(i32::from(self.ifr_ifru.ifru_flags))
+    }
+
+    /// Set flags
+    pub unsafe fn set_flags(&mut self, flags: ::IfFlags) {
+        self.ifr_ifru.ifru_flags = flags.bits() as i16;
     }
 
     /// Enable passed flags
-    pub unsafe fn insert_flags(&mut self, flags: ::IfFlags) {
-        self.ifr_ifru.ifru_flags |= flags.bits();
-    }
-
-    /// Enable passed flags
-    pub unsafe fn remove_flags(&mut self, flags: ::IfFlags) {
-        self.ifr_ifru.ifru_flags &= !flags.bits();
+    pub unsafe fn set_raw_flags(&mut self, raw_flags: libc::c_short) {
+        self.ifr_ifru.ifru_flags = raw_flags;
     }
 }
 
@@ -38,11 +38,4 @@ pub struct ifaliasreq {
     pub ifra_addr: libc::sockaddr,
     pub ifra_broadaddr: libc::sockaddr,
     pub ifra_mask: libc::sockaddr,
-}
-
-bitflags! {
-    pub struct IfFlags: libc::c_short {
-        const IFF_RUNNING = libc::IFF_RUNNING as libc::c_short;
-        const IFF_UP = libc::IFF_UP as libc::c_short;
-    }
 }

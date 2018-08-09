@@ -13,4 +13,3 @@ pub union ifr_ifru {
     pub ifru_data: ::caddr_t,
     pub ifru_index: libc::c_uint,
 }
-

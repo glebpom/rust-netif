@@ -15,7 +15,6 @@ mod impls;
 pub use errors::{Error, ErrorKind, Result};
 
 use eui48::MacAddress;
-use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
 
 #[derive(Debug, Clone)]
@@ -30,6 +29,8 @@ pub struct Iface {
 impl Iface {
     #[cfg(not(target_os = "android"))]
     pub fn all() -> Result<Vec<Iface>> {
+        use std::collections::{HashMap, HashSet};
+
         let mut ifnames = HashSet::new();
         let mut hw = HashMap::new();
         let mut ips = HashMap::new();
@@ -67,11 +68,14 @@ impl Iface {
 
     #[cfg(not(target_os = "android"))]
     pub fn find_by_name(ifname: &str) -> Result<Iface> {
-        Iface::all()?
+        let iface = Iface::all()?
             .iter()
             .find(|&x| x.ifname == ifname)
             .cloned()
-            .ok_or(ErrorKind::IfaceNotFound.into())
+            .ok_or(Error::from(ErrorKind::IfaceNotFound))?;
+        let ctl_fd = impls::new_control_socket()?;
+        impls::get_iface_ifreq(&ctl_fd, &iface.ifname)?;
+        Ok(iface)
     }
 
     #[cfg(target_os = "android")]
@@ -98,6 +102,11 @@ impl Iface {
     pub fn down(&self) -> Result<()> {
         let ctl_fd = impls::new_control_socket()?;
         impls::down(&ctl_fd, &self.ifname)
+    }
+
+    pub fn set_promiscuous_mode(&self, is_enable: bool) -> Result<()> {
+        let ctl_fd = impls::new_control_socket()?;
+        impls::set_promiscuous_mode(&ctl_fd, &self.ifname, is_enable)
     }
 
     pub fn hw_addr(&self) -> Option<MacAddress> {
@@ -146,6 +155,12 @@ mod tests {
     // fn test_down() {
     //     let iface = Iface::find_by_name(default_iface).unwrap();
     //     iface.down().unwrap();
+    // }
+
+    // #[test]
+    // fn test_promiscuous() {
+    //     let iface = Iface::find_by_name(default_iface).unwrap();
+    //     iface.set_promiscuous_mode(true).unwrap();
     // }
 
     #[test]

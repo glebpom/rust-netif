@@ -1,6 +1,8 @@
 use super::linux_common::*;
 use errors::{ErrorKind, Result};
 use ifcontrol::Iface;
+use ifstructs::{ifreq, IfFlags};
+use impls::unix::linux_common::TunTapFlags;
 use impls::unix::*;
 use libc::{c_short, c_uchar, IFF_MULTI_QUEUE, IFF_NO_PI, IFF_TAP, IFF_TUN, IFNAMSIZ};
 use nix::fcntl;
@@ -103,14 +105,19 @@ impl Native {
 }
 
 impl Native {
-    fn create_queue(&self, name: &str, flags: IfFlags, is_async: bool) -> Result<(File, String)> {
+    fn create_queue(
+        &self,
+        name: &str,
+        flags: TunTapFlags,
+        is_async: bool,
+    ) -> Result<(File, String)> {
         let path = Path::new("/dev/net/tun");
 
         let file = OpenOptions::new().read(true).write(true).open(&path)?;
 
         let mut req = ifreq::from_name(name)?;
 
-        unsafe { req.insert_flags(flags) };
+        unsafe { req.set_raw_flags(flags.bits()) };
 
         unsafe { tun_set_iff(file.as_raw_fd(), &mut req as *mut _ as *mut _) }?;
 
@@ -143,13 +150,13 @@ impl Native {
             ));
         }
 
-        let mut flags = IfFlags::IFF_NO_PI;
+        let mut flags = TunTapFlags::IFF_NO_PI;
         flags.insert(match iface_type {
-            ::VirtualInterfaceType::Tun => IfFlags::IFF_TUN,
-            ::VirtualInterfaceType::Tap => IfFlags::IFF_TAP,
+            ::VirtualInterfaceType::Tun => TunTapFlags::IFF_TUN,
+            ::VirtualInterfaceType::Tap => TunTapFlags::IFF_TAP,
         });
         if queues > 1 {
-            flags.insert(IfFlags::IFF_MULTI_QUEUE);
+            flags.insert(TunTapFlags::IFF_MULTI_QUEUE);
         };
 
         let mut files = vec![];

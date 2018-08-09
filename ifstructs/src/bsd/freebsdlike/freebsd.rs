@@ -47,4 +47,3 @@ pub struct ifaliasreq {
     pub ifra_mask: libc::sockaddr,
     pub ifra_vhid: libc::c_int,
 }
-

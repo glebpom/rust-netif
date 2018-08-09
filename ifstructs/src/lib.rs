@@ -4,7 +4,6 @@ extern crate cfg_if;
 #[macro_use]
 extern crate bitflags;
 
-#[cfg(test)]
 #[macro_use]
 extern crate nix;
 
@@ -40,6 +39,8 @@ impl ifreq {
         Ok(req)
     }
 }
+
+pub type IfFlags = nix::net::if_::InterfaceFlags;
 
 #[cfg(test)]
 mod tests {

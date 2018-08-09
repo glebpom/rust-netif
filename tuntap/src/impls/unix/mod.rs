@@ -1,8 +1,3 @@
-#[macro_use]
-mod macros;
-
-#[cfg(any(target_os = "macos", target_os = "freebsd"))]
-mod bsd_common;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 mod linux_common;
 
@@ -25,10 +20,7 @@ pub use self::linux::*;
 pub use self::macos::*;
 
 use bytes::{Bytes, BytesMut, IntoBuf};
-use errors::{Error, ErrorKind, Result};
 use futures::{Async, AsyncSink, Poll, Sink, StartSend, Stream};
-use ifstructs::{ifreq, IfFlags};
-use libc::IFNAMSIZ;
 use mio;
 use mio::event::Evented;
 use mio::unix::EventedFd;
@@ -235,60 +227,46 @@ where
 //     }
 // }
 
-mod ifaces {
-    use super::*;
-    #[cfg(any(target_os = "freebsd", target_os = "macos"))]
-    use impls::unix::bsd_common::{iface_get_flags, iface_set_flags};
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    use impls::unix::linux_common::{iface_get_flags, iface_set_flags};
-    use libc;
-    use std::ffi::CString;
+// #[cfg(any(target_os = "macos", target_os = "freebsd"))]
+// pub fn add_addr_to_iface(
+//     name: &str,
+//     ip: IpAddr,
+//     mask: IpAddr,
+//     broadcast_addr: IpAddr,
+// ) -> Result<()> {
+// let mut req = ifreq::from_name(&name)?;
 
-    // #[cfg(any(target_os = "macos", target_os = "freebsd"))]
-    // pub fn add_addr_to_iface(
-    //     name: &str,
-    //     ip: IpAddr,
-    //     mask: IpAddr,
-    //     broadcast_addr: IpAddr,
-    // ) -> Result<()> {
-    // let mut req = ifreq::from_name(&name)?;
+//     req.ifra_addr = to_sockaddr(ip);
+//     req.ifra_broadaddr = to_sockaddr(broadcast_addr);
+//     req.ifra_mask = to_sockaddr(mask);
 
-    //     req.ifra_addr = to_sockaddr(ip);
-    //     req.ifra_broadaddr = to_sockaddr(broadcast_addr);
-    //     req.ifra_mask = to_sockaddr(mask);
+//     let ctl_fd: RawFd = socket(AddressFamily::Inet, SockType::Raw, SockFlag::empty(), None)?;
 
-    //     let ctl_fd: RawFd = socket(AddressFamily::Inet, SockType::Raw, SockFlag::empty(), None)?;
+//     unsafe { iface_add_addr(ctl_fd, &mut req) }?;
 
-    //     unsafe { iface_add_addr(ctl_fd, &mut req) }?;
+//     Ok(())
+// }
 
-    //     Ok(())
-    // }
+// #[cfg(any(target_os = "macos", target_os = "freebsd"))]
+// pub fn del_addr_from_iface(name: &str, ip: IpAddr) -> Result<()> {
+// let mut req = ifreq::from_name(&name)?;
 
-    // #[cfg(any(target_os = "macos", target_os = "freebsd"))]
-    // pub fn del_addr_from_iface(name: &str, ip: IpAddr) -> Result<()> {
-    // let mut req = ifreq::from_name(&name)?;
+//     req.inner.ifru_addr = to_sockaddr(ip);
 
-    //     req.inner.ifru_addr = to_sockaddr(ip);
+//     let ctl_fd: RawFd = socket(AddressFamily::Inet, SockType::Raw, SockFlag::empty(), None)?;
 
-    //     let ctl_fd: RawFd = socket(AddressFamily::Inet, SockType::Raw, SockFlag::empty(), None)?;
+//     unsafe { iface_del_addr(ctl_fd, &mut req) }?;
 
-    //     unsafe { iface_del_addr(ctl_fd, &mut req) }?;
+//     Ok(())
+// }
 
-    //     Ok(())
-    // }
-
-    // pub fn to_sockaddr(ip: IpAddr) -> libc::sockaddr {
-    //     let r = SockAddr::new_inet(InetAddr::from_std(&SocketAddr::new(ip, 0)));
-    //     let f = unsafe { r.as_ffi_pair() };
-    //     let mut res = f.0.clone();
-    //     #[cfg(any(target_os = "macos", target_os = "freebsd"))]
-    //     {
-    //         res.sa_len = f.1 as u8;
-    //     }
-    //     res
-    // }
-
-}
-
-// #[cfg(any(target_os = "freebsd", target_os = "linux"))]
-pub use self::ifaces::*;
+// pub fn to_sockaddr(ip: IpAddr) -> libc::sockaddr {
+//     let r = SockAddr::new_inet(InetAddr::from_std(&SocketAddr::new(ip, 0)));
+//     let f = unsafe { r.as_ffi_pair() };
+//     let mut res = f.0.clone();
+//     #[cfg(any(target_os = "macos", target_os = "freebsd"))]
+//     {
+//         res.sa_len = f.1 as u8;
+//     }
+//     res
+// }

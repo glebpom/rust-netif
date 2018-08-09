@@ -18,10 +18,9 @@ cfg_if! {
     }
 }
 
-use errors::{Error, ErrorKind, Result};
+use errors::{Result};
 use ifstructs::ifreq;
 use ifstructs::IfFlags;
-use libc;
 use nix;
 use nix::sys::socket::{socket, AddressFamily, SockFlag, SockType};
 use std::fs::File;
@@ -60,9 +59,22 @@ pub fn is_up<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<bool> {
     let mut req = ifreq::from_name(ifname)?;
     ti!(unsafe { iface_get_flags(ctl_fd.as_raw_fd(), &mut req) })?;
 
-    let mut flags = unsafe { req.get_flags() };
+    let flags = unsafe { req.get_flags() };
 
     Ok(flags.contains(IfFlags::IFF_UP) && flags.contains(IfFlags::IFF_RUNNING))
+}
+
+pub fn set_promiscuous_mode<F: AsRawFd>(ctl_fd: &F, ifname: &str, is_enable: bool) -> Result<()> {
+    let mut req = ifreq::from_name(ifname)?;
+    ti!(unsafe { iface_get_flags(ctl_fd.as_raw_fd(), &mut req) })?;
+
+    let mut flags = unsafe { req.get_flags() };
+
+    flags.set(IfFlags::IFF_PROMISC, is_enable);
+
+    unsafe { iface_set_flags(ctl_fd.as_raw_fd(), &mut req) }?;
+
+    Ok(())
 }
 
 pub fn up<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
@@ -73,8 +85,10 @@ pub fn up<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
     let mut req = ifreq::from_name(ifname)?;
     ti!(unsafe { iface_get_flags(ctl_fd.as_raw_fd(), &mut req) })?;
 
-    unsafe { req.insert_flags(IfFlags::IFF_UP) };
-    unsafe { req.insert_flags(IfFlags::IFF_RUNNING) };
+    let mut flags = unsafe { req.get_flags() };
+
+    flags.insert(IfFlags::IFF_UP);
+    flags.insert(IfFlags::IFF_RUNNING);
 
     unsafe { iface_set_flags(ctl_fd.as_raw_fd(), &mut req) }?;
 
@@ -86,13 +100,13 @@ pub fn down<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
         return Ok(());
     }
 
-    let fd = ctl_fd.as_raw_fd();
-
     let mut req = ifreq::from_name(ifname)?;
     ti!(unsafe { iface_get_flags(ctl_fd.as_raw_fd(), &mut req) })?;
 
-    unsafe { req.remove_flags(IfFlags::IFF_UP) };
-    unsafe { req.remove_flags(IfFlags::IFF_RUNNING) };
+    let mut flags = unsafe { req.get_flags() };
+
+    flags.remove(IfFlags::IFF_UP);
+    flags.remove(IfFlags::IFF_RUNNING);
 
     unsafe { iface_set_flags(ctl_fd.as_raw_fd(), &mut req) }?;
     Ok(())

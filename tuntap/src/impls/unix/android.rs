@@ -1,7 +1,7 @@
 use super::linux_common::*;
 use errors::{ErrorKind, Result};
 use ifcontrol::Iface;
-use ifstructs::ifreq;
+use ifstructs::{ifreq, IfFlags};
 use impls::unix::*;
 use libc::{self, IFF_NO_PI, IFF_TUN, IFNAMSIZ};
 use nix::fcntl;
@@ -69,8 +69,12 @@ impl Native {
 
         let mut req = ifreq::from_name(name.unwrap_or(""))?;
 
-        unsafe { req.insert_flags(IfFlags::IFF_NO_PI) };
-        unsafe { req.insert_flags(IfFlags::IFF_TUN) };
+        let mut flags = unsafe { req.get_flags() };
+
+        flags.insert(IfFlags::IFF_NO_PI);
+        flags.insert(IfFlags::IFF_TUN);
+
+        unsafe { req.set_flags(flags) };
 
         unsafe { tun_set_iff(file.as_raw_fd(), &mut req as *mut _ as *mut _) }?;
 

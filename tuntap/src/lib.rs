@@ -1,5 +1,8 @@
 #![recursion_limit = "128"]
 
+#[cfg(any(target_os = "linux", target_os = "android"))]
+#[macro_use]
+extern crate bitflags;
 extern crate bytes;
 extern crate futures;
 extern crate mio;
