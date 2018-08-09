@@ -1,17 +1,5 @@
 use libc;
 
-cfg_if! {
-    if #[cfg(target_os = "freebsd")] {
-        mod freebsd;
-        pub use self::freebsd::*;
-    } else if #[cfg(target_os = "dragonfly")] {
-        mod dragonfly;
-        pub use self::dragonfly::*;
-    } else {
-        // ...
-    }
-}
-
 //FIXME: consider 32 bits
 impl ::ifreq {
     /// Get flags
@@ -30,4 +18,19 @@ impl ::ifreq {
         self.ifr_ifru.ifru_flags[0] = raw_flags;
     }
 
+    pub unsafe fn set_addr(&mut self, addr: libc::sockaddr) {
+        self.ifr_ifru.ifru_addr = addr;
+    }
+}
+
+cfg_if! {
+    if #[cfg(target_os = "freebsd")] {
+        mod freebsd;
+        pub use self::freebsd::*;
+    } else if #[cfg(target_os = "dragonfly")] {
+        mod dragonfly;
+        pub use self::dragonfly::*;
+    } else {
+        // ...
+    }
 }

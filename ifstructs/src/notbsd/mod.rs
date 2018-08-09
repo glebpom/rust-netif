@@ -1,15 +1,3 @@
-cfg_if! {
-    if #[cfg(target_os = "android")] {
-        mod android;
-        pub use self::android::*;
-    } else if #[cfg(target_os = "linux")] {
-        mod linux;
-        pub use self::linux::*;
-    } else {
-        // Unknown target_os
-    }
-}
-
 use libc;
 
 #[derive(Copy, Clone)]
@@ -21,4 +9,16 @@ pub struct ifmap {
     pub irq: libc::c_uchar,
     pub dma: libc::c_uchar,
     pub port: libc::c_uchar,
+}
+
+cfg_if! {
+    if #[cfg(target_os = "android")] {
+        mod android;
+        pub use self::android::*;
+    } else if #[cfg(target_os = "linux")] {
+        mod linux;
+        pub use self::linux::*;
+    } else {
+        // Unknown target_os
+    }
 }

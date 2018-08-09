@@ -2,10 +2,7 @@ use errors::{ErrorKind, Result};
 use ifcontrol::Iface;
 use ifstructs::ifreq;
 use impls::unix::*;
-use libc::{
-    c_char, c_int, c_short, c_uchar, c_uint, c_ulong, c_ushort, c_void, dev_t, mode_t, size_t,
-    sockaddr, IFF_BROADCAST, IFF_MULTICAST, IFNAMSIZ, S_IFCHR,
-};
+use libc::{c_char, c_int, dev_t, mode_t, IFF_BROADCAST, IFF_MULTICAST, S_IFCHR};
 use nix::sys::socket::{socket, AddressFamily, SockFlag, SockType};
 use nix::sys::stat::fstat;
 use std::ffi::CString;
@@ -89,16 +86,6 @@ impl Native {
     }
 }
 
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct ifaliasreq {
-    pub ifra_name: [u8; IFNAMSIZ], /* if name,	e.g. "en0" */
-    pub ifra_addr: sockaddr,
-    pub ifra_broadaddr: sockaddr,
-    pub ifra_mask: sockaddr,
-    pub ifra_vhid: c_int,
-}
-
 // #define	TUNSIFPID	_IO('t', 95)
 ioctl_none!(tun_attach_to_pid, b't', 95);
 // https://github.com/nix-rust/nix/issues/934
@@ -110,10 +97,6 @@ ioctl_write_ptr!(tun_set_mode, b't', 94, c_int);
 ioctl_write_ptr!(fd_set_non_blocking, b'f', 126, c_int);
 // #define	SIOCIFDESTROY	 _IOW('i', 121, struct ifreq)	/* destroy clone if */
 ioctl_write_ptr!(iface_destroy, b'i', 121, ifreq);
-// #define	SIOCAIFADDR	 _IOW('i', 43, struct ifaliasreq)/* add/chg IF alias */
-ioctl_write_ptr!(iface_add_addr, b'i', 43, ifaliasreq);
-// #define	SIOCDIFADDR	 _IOW('i', 25, struct ifreq)	/* delete IF addr */
-ioctl_write_ptr!(iface_del_addr, b'i', 25, ifreq);
 
 extern "C" {
     pub fn devname(dev: dev_t, mode_type: mode_t) -> *mut c_char;

@@ -1,5 +1,41 @@
 use libc;
-use std::io;
+use std::{io, mem};
+
+#[allow(non_camel_case_types)]
+pub type caddr_t = *mut libc::c_char;
+
+#[repr(C)]
+#[allow(non_camel_case_types)]
+pub struct ifreq {
+    pub ifr_name: [u8; libc::IFNAMSIZ],
+    pub ifr_ifru: ifr_ifru,
+}
+
+impl ifreq {
+    pub fn set_name(&mut self, name: &str) -> io::Result<()> {
+        set_name!(self.ifr_name, name)
+    }
+
+    pub fn get_name(&self) -> io::Result<String> {
+        get_name!(self.ifr_name)
+    }
+}
+
+impl ifaliasreq {
+    pub fn set_name(&mut self, name: &str) -> io::Result<()> {
+        set_name!(self.ifra_name, name)
+    }
+
+    pub fn get_name(&self) -> io::Result<String> {
+        get_name!(self.ifra_name)
+    }
+
+    pub fn from_name(name: &str) -> io::Result<ifaliasreq> {
+        let mut req: ifaliasreq = unsafe { mem::zeroed() };
+        req.set_name(name)?;
+        Ok(req)
+    }
+}
 
 cfg_if! {
     if #[cfg(any(target_os = "macos", target_os = "ios"))] {
@@ -17,32 +53,12 @@ cfg_if! {
     }
 }
 
-#[allow(non_camel_case_types)]
-pub type caddr_t = *mut libc::c_char;
-
-#[repr(C)]
-pub struct ifreq {
-    pub ifr_name: [u8; libc::IFNAMSIZ],
-    pub ifr_ifru: ifr_ifru,
-}
-
-impl ifreq {
-    pub fn set_name(&mut self, name: &str) -> io::Result<()> {
-        set_name!(self.ifr_name, name)
-    }
-
-    pub fn get_name(&self) -> io::Result<String> {
-        get_name!(self.ifr_name)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::mem;
-    
+
     #[test]
     fn test_ifaliasreq() {
-        let _req: ifaliasreq = unsafe { mem::zeroed() };
+        let _req = ifaliasreq::from_name("en0").unwrap();
     }
 }

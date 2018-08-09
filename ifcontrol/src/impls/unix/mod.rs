@@ -1,29 +1,13 @@
-cfg_if! {
-    if #[cfg(any(target_os = "linux",
-                 target_os = "android",
-                 target_os = "fuchsia"))] {
-        mod notbsd;
-        use self::notbsd::*;
-    } else if #[cfg(any(target_os = "macos",
-                        target_os = "ios",
-                        target_os = "freebsd",
-                        target_os = "dragonfly",
-                        target_os = "openbsd",
-                        target_os = "netbsd",
-                        target_os = "bitrig"))] {
-        mod bsd;
-        use self::bsd::*;
-    } else {
-        // Unknown target_os
-    }
-}
 
-use errors::{Result};
+
+use errors::Result;
 use ifstructs::ifreq;
 use ifstructs::IfFlags;
+use libc;
 use nix;
-use nix::sys::socket::{socket, AddressFamily, SockFlag, SockType};
+use nix::sys::socket::{socket, AddressFamily, InetAddr, SockAddr, SockFlag, SockType};
 use std::fs::File;
+use std::net::{IpAddr, SocketAddr};
 use std::os::unix::io::{AsRawFd, FromRawFd};
 
 macro_rules! ti {
@@ -115,4 +99,35 @@ pub fn down<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
 #[cfg(not(target_os = "android"))]
 pub fn get_all_addresses() -> Result<nix::ifaddrs::InterfaceAddressIterator> {
     Ok(nix::ifaddrs::getifaddrs()?)
+}
+
+pub fn to_sockaddr(ip: IpAddr) -> libc::sockaddr {
+    let r = SockAddr::new_inet(InetAddr::from_std(&SocketAddr::new(ip, 0)));
+    let f = unsafe { r.as_ffi_pair() };
+    let mut res = f.0.clone();
+    #[cfg(not(any(target_os = "android", target_os = "linux")))]
+    {
+        res.sa_len = f.1 as u8;
+    }
+    res
+}
+
+cfg_if! {
+    if #[cfg(any(target_os = "linux",
+                 target_os = "android",
+                 target_os = "fuchsia"))] {
+        mod notbsd;
+        pub use self::notbsd::*;
+    } else if #[cfg(any(target_os = "macos",
+                        target_os = "ios",
+                        target_os = "freebsd",
+                        target_os = "dragonfly",
+                        target_os = "openbsd",
+                        target_os = "netbsd",
+                        target_os = "bitrig"))] {
+        mod bsd;
+        pub use self::bsd::*;
+    } else {
+        // Unknown target_os
+    }
 }

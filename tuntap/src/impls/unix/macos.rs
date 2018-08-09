@@ -17,20 +17,6 @@ use std::str;
 use std::sync::{Arc, Mutex};
 use tokio::reactor::PollEvented2;
 
-// #define	SIOCAIFADDR	_IOW('i', 26, struct ifaliasreq)/* add/chg IF alias */
-// ioctl_write_ptr!(iface_add_addr, b'i', 26, ifaliasreq);
-// #define	SIOCDIFADDR	_IOW('i', 25, struct ifreq)	/* delete IF addr */
-// ioctl_write_ptr!(iface_del_addr, b'i', 25, ifreq);
-
-// #[derive(Copy, Clone)]
-// #[repr(C)]
-// pub struct ifaliasreq {
-//     pub ifra_name: [u8; IFNAMSIZ],
-//     pub ifra_addr: libc::sockaddr,
-//     pub ifra_broadaddr: libc::sockaddr,
-//     pub ifra_mask: libc::sockaddr,
-// }
-
 #[derive(Copy, Clone)]
 struct UtunCreatedIfaceName;
 

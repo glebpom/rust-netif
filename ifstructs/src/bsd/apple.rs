@@ -29,6 +29,11 @@ impl ::ifreq {
     pub unsafe fn set_raw_flags(&mut self, raw_flags: libc::c_short) {
         self.ifr_ifru.ifru_flags = raw_flags;
     }
+
+
+    pub unsafe fn set_addr(&mut self, addr: libc::sockaddr) {
+        self.ifr_ifru.ifru_addr = addr;
+    }
 }
 
 #[derive(Copy, Clone)]

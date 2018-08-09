@@ -8,6 +8,7 @@ extern crate cfg_if;
 extern crate nix;
 #[macro_use]
 extern crate error_chain;
+extern crate ipnetwork;
 
 mod errors;
 mod impls;
@@ -111,6 +112,41 @@ impl Iface {
 
     pub fn hw_addr(&self) -> Option<MacAddress> {
         self.hw_addr
+    }
+
+    pub fn refresh(&mut self) -> Result<()> {
+        let new_iface = Iface::find_by_name(&self.ifname)?;
+        self.hw_addr = new_iface.hw_addr;
+        self.ip_addrs = new_iface.ip_addrs;
+        Ok(())
+    }
+
+    #[cfg(not(any(target_os = "android", target_os = "linux")))]
+    pub fn add_addr(&mut self, cidr: ipnetwork::IpNetwork) -> Result<()> {
+        let ctl_fd = impls::new_control_socket()?;
+
+        impls::add_addr_to_iface(
+            &ctl_fd,
+            &self.ifname,
+            cidr.ip(),
+            cidr.mask(),
+            cidr.broadcast(),
+        )?;
+
+        self.refresh()?;
+
+        Ok(())
+    }
+
+    #[cfg(not(any(target_os = "android", target_os = "linux")))]
+    pub fn del_addr(&mut self, ip: IpAddr) -> Result<()> {
+        let ctl_fd = impls::new_control_socket()?;
+
+        impls::del_addr_from_iface(&ctl_fd, &self.ifname, ip)?;
+
+        self.refresh()?;
+
+        Ok(())
     }
 }
 
