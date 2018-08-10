@@ -41,6 +41,7 @@ pub enum EthernetDevice {
     Bridge,
 }
 
+#[cfg(unix)]
 #[derive(Debug)]
 pub struct Iface {
     ifname: String,
@@ -193,7 +194,7 @@ impl Iface {
     }
 }
 
-#[cfg(not(any(target_os = "freebsd", target_os = "linux")))]
+#[cfg(all(unix, not(any(target_os = "freebsd", target_os = "linux"))))]
 impl Iface {
     fn is_bridge(_ifname: &str) -> Result<bool> {
         Ok(false)
