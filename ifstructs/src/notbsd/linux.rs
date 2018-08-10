@@ -42,7 +42,7 @@ impl ::ifreq {
     pub unsafe fn set_flags(&mut self, flags: ::IfFlags) {
         self.ifr_ifru.ifr_flags = flags.bits() as i16;
     }
-    
+
     /// Enable passed flags
     pub unsafe fn set_raw_flags(&mut self, raw_flags: libc::c_short) {
         self.ifr_ifru.ifr_flags = raw_flags;

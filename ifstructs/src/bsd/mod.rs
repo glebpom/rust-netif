@@ -4,6 +4,7 @@ use std::{io, mem};
 #[allow(non_camel_case_types)]
 pub type caddr_t = *mut libc::c_char;
 
+#[derive(Copy, Clone)]
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct ifreq {

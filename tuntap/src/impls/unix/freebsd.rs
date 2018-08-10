@@ -95,8 +95,10 @@ ioctl_write_ptr!(tun_enable_header, b't', 96, c_int);
 ioctl_write_ptr!(tun_set_mode, b't', 94, c_int);
 // #define	FIONBIO		_IOW('f', 126, int)	/* set/clear non-blocking i/o */
 ioctl_write_ptr!(fd_set_non_blocking, b'f', 126, c_int);
+
+//TODO: use ifcontrol
 // #define	SIOCIFDESTROY	 _IOW('i', 121, struct ifreq)	/* destroy clone if */
-ioctl_write_ptr!(iface_destroy, b'i', 121, ifreq);
+ioctl_write_ptr!(ioctl_iface_destroy, b'i', 121, ifreq);
 
 extern "C" {
     pub fn devname(dev: dev_t, mode_type: mode_t) -> *mut c_char;
@@ -169,7 +171,7 @@ impl ::DescriptorCloser for Native {
             None,
         )?;
 
-        unsafe { iface_destroy(ctl_fd, &mut req) }?;
+        unsafe { ioctl_iface_destroy(ctl_fd, &mut req) }?;
 
         Ok(())
     }

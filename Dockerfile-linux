@@ -1,0 +1,10 @@
+FROM rust:1.28.0-stretch
+
+RUN mkdir -p /build/code
+ADD . /build/code
+WORKDIR /build/code
+
+ENV RUST_BACKTRACE full
+
+CMD /bin/bash -c "ip tuntap add dev tap1 mode tap && ip link set tap1 up && cargo test -p ifcontrol impls -- --nocapture ; ip link ; bridge link"
+

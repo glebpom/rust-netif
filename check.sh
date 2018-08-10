@@ -13,5 +13,5 @@ echo "> FreeBSD..."
 cargo check --target=x86_64-unknown-freebsd $@
 echo "> NetBSD..."
 cargo check --target=x86_64-unknown-netbsd $@
-echo "> Windows..."
-cargo check --target=x86_64-pc-windows-gnu $@
+# echo "> Windows..."
+# cargo check --target=x86_64-pc-windows-gnu $@

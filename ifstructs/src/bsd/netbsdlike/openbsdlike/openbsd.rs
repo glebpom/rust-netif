@@ -1,6 +1,6 @@
 use libc;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub union ifr_ifru {
     pub ifru_addr: libc::sockaddr,

@@ -56,6 +56,8 @@ pub fn set_promiscuous_mode<F: AsRawFd>(ctl_fd: &F, ifname: &str, is_enable: boo
 
     flags.set(IfFlags::IFF_PROMISC, is_enable);
 
+    unsafe { req.set_flags(flags) };
+
     unsafe { iface_set_flags(ctl_fd.as_raw_fd(), &mut req) }?;
 
     Ok(())
@@ -74,6 +76,8 @@ pub fn up<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
     flags.insert(IfFlags::IFF_UP);
     flags.insert(IfFlags::IFF_RUNNING);
 
+    unsafe { req.set_flags(flags) };
+
     unsafe { iface_set_flags(ctl_fd.as_raw_fd(), &mut req) }?;
 
     Ok(())
@@ -91,6 +95,8 @@ pub fn down<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
 
     flags.remove(IfFlags::IFF_UP);
     flags.remove(IfFlags::IFF_RUNNING);
+
+    unsafe { req.set_flags(flags) };
 
     unsafe { iface_set_flags(ctl_fd.as_raw_fd(), &mut req) }?;
     Ok(())

@@ -44,3 +44,40 @@ pub struct ifaliasreq {
     pub ifra_broadaddr: libc::sockaddr,
     pub ifra_mask: libc::sockaddr,
 }
+
+// bitflags! {
+//     // https://github.com/apple/darwin-xnu/blob/master/bsd/net/route.h
+//     pub struct Flags: i32 {
+//         const RTF_UP = sys::RTF_UP;
+//         const RTF_GATEWAY = sys::RTF_GATEWAY;
+//         const RTF_HOST = sys::RTF_HOST;
+//         const RTF_REJECT = sys::RTF_REJECT;
+//         const RTF_DYNAMIC = sys::RTF_DYNAMIC;
+//         const RTF_MODIFIED = sys::RTF_MODIFIED;
+//         const RTF_DONE = sys::RTF_DONE;
+//         const RTF_DELCLONE = sys::RTF_DELCLONE;
+//         const RTF_CLONING = sys::RTF_CLONING;
+//         const RTF_XRESOLVE = sys::RTF_XRESOLVE;
+//         const RTF_LLINFO = sys::RTF_LLINFO;
+//         const RTF_LLDATA = sys::RTF_LLDATA;
+//         const RTF_STATIC = sys::RTF_STATIC;
+//         const RTF_BLACKHOLE = sys::RTF_BLACKHOLE;
+//         const RTF_NOIFREF = sys::RTF_NOIFREF;
+//         const RTF_PROTO2 = sys::RTF_PROTO2;
+//         const RTF_PROTO1 = sys::RTF_PROTO1;
+//         const RTF_PRCLONING = sys::RTF_PRCLONING;
+//         const RTF_WASCLONED = sys::RTF_WASCLONED;
+//         const RTF_PROTO3 = sys::RTF_PROTO3;
+//         const RTF_PINNED = sys::RTF_PINNED;
+//         const RTF_LOCAL = sys::RTF_LOCAL;
+//         const RTF_BROADCAST = sys::RTF_BROADCAST;
+//         const RTF_MULTICAST = sys::RTF_MULTICAST;
+//         const RTF_IFSCOPE = sys::RTF_IFSCOPE;
+//         const RTF_CONDEMNED = sys::RTF_CONDEMNED;
+//         const RTF_IFREF = sys::RTF_IFREF;
+//         const RTF_PROXY = sys::RTF_PROXY;
+//         const RTF_ROUTER = sys::RTF_ROUTER;
+//         const RTF_DEAD = sys::RTF_DEAD;
+//         const RTPRF_OURS = sys::RTPRF_OURS;
+//     }
+// }

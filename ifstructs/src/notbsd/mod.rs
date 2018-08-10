@@ -1,6 +1,6 @@
 use libc;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct ifmap {
     pub mem_start: libc::c_ulong,

@@ -20,46 +20,25 @@ use eui48::MacAddress;
 use ifstructs::IfFlags;
 use std::net::IpAddr;
 
-pub trait IfaceType: ::std::fmt::Debug {
-    fn hw_addr(&self) -> Option<MacAddress>;
+#[derive(Debug, Clone)]
+pub enum Link {
+    Ethernet(Ethernet),
+    Loopback,
+    Unknown,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ethernet {
     hw_addr: MacAddress,
-}
-impl IfaceType for Ethernet {
-    fn hw_addr(&self) -> Option<MacAddress> {
-        Some(self.hw_addr)
-    }
+    ether_type: EthernetDevice,
 }
 
-#[derive(Debug)]
-pub struct Bridge {
-    hw_addr: MacAddress,
-}
-impl IfaceType for Bridge {
-    fn hw_addr(&self) -> Option<MacAddress> {
-        Some(self.hw_addr)
-    }
-}
-
-#[derive(Debug)]
-pub struct Loopback {}
-impl IfaceType for Loopback {
-    fn hw_addr(&self) -> Option<MacAddress> {
-        None
-    }
-}
-
-#[derive(Debug)]
-pub struct Unknown {
-    hw_addr: Option<MacAddress>,
-}
-impl IfaceType for Unknown {
-    fn hw_addr(&self) -> Option<MacAddress> {
-        self.hw_addr
-    }
+#[derive(Debug, Clone)]
+pub enum EthernetDevice {
+    Regular,
+    Tun,
+    Tap,
+    Bridge,
 }
 
 #[derive(Debug)]
@@ -67,7 +46,7 @@ pub struct Iface {
     ifname: String,
     ip_addrs: Vec<IpAddr>,
     flags: IfFlags,
-    details: Box<IfaceType>,
+    link: Link,
 }
 
 #[cfg(unix)]
@@ -94,6 +73,7 @@ impl Iface {
                 }
             }
         }
+
         let mut ifaces = Vec::new();
         for (ifname, flags) in flags {
             let ip_addrs = ips.get(&ifname)
@@ -103,23 +83,30 @@ impl Iface {
                 .map(|inet_addr| inet_addr.to_std().ip())
                 .collect();
             let hw_addr = hw.get(&ifname).map(|addr| MacAddress::new(addr.addr()));
-            let details: Box<dyn IfaceType> = if flags.contains(IfFlags::IFF_LOOPBACK) {
-                Box::new(Loopback {})
+            let link = if flags.contains(IfFlags::IFF_LOOPBACK) {
+                Link::Loopback
             } else if let Some(hw_addr) = hw_addr {
-                Box::new(Ethernet {
-                    hw_addr,
+                Link::Ethernet(Ethernet {
+                    hw_addr: hw_addr,
+                    ether_type: if Self::is_bridge(&ifname)? {
+                        EthernetDevice::Bridge
+                    } else if Self::is_tap(&ifname)? {
+                        EthernetDevice::Tap
+                    } else if Self::is_tun(&ifname)? {
+                        EthernetDevice::Tun
+                    } else {
+                        EthernetDevice::Regular
+                    },
                 })
             } else {
-                Box::new(Unknown {
-                    hw_addr,
-                })
+                Link::Unknown
             };
 
             let iface = Iface {
                 ip_addrs,
                 ifname,
-                details,
                 flags,
+                link,
             };
             ifaces.push(iface);
         }
@@ -143,7 +130,10 @@ impl Iface {
     }
 
     pub fn hw_addr(&self) -> Option<MacAddress> {
-        self.details.hw_addr()
+        match self.link {
+            Link::Ethernet(Ethernet { hw_addr, .. }) => Some(hw_addr),
+            _ => None,
+        }
     }
 
     pub fn is_up(&self) -> Result<bool> {
@@ -170,7 +160,7 @@ impl Iface {
         let new_iface = Self::find_by_name(&self.ifname)?;
         self.ip_addrs = new_iface.ip_addrs;
         self.flags = new_iface.flags;
-        self.details = new_iface.details;
+        self.link = new_iface.link;
         Ok(())
     }
 
@@ -203,14 +193,60 @@ impl Iface {
     }
 }
 
+#[cfg(not(any(target_os = "freebsd", target_os = "linux")))]
+impl Iface {
+    fn is_bridge(_ifname: &str) -> Result<bool> {
+        Ok(false)
+    }
+    fn is_tun(_ifname: &str) -> Result<bool> {
+        Ok(false)
+    }
+    fn is_tap(_ifname: &str) -> Result<bool> {
+        Ok(false)
+    }
+}
+#[cfg(target_os = "linux")]
+impl Iface {
+    fn is_bridge(ifname: &str) -> Result<bool> {
+        Ok(false)
+    }
+    fn is_tun(ifname: &str) -> Result<bool> {
+        Ok(false)
+    }
+    fn is_tap(ifname: &str) -> Result<bool> {
+        Ok(false)
+    }
+}
+
+#[cfg(target_os = "freebsd")]
+impl Iface {
+    fn has_group(ifname: &str, group: &str) -> Result<bool> {
+        let ctl_fd = impls::new_control_socket()?;
+        Ok(impls::get_iface_groups(&ctl_fd, ifname)?
+            .iter()
+            .find(|s| *s == group)
+            .is_some())
+    }
+
+    fn is_bridge(ifname: &str) -> Result<bool> {
+        Self::has_group(ifname, "bridge")
+    }
+    fn is_tun(ifname: &str) -> Result<bool> {
+        Self::has_group(ifname, "tun")
+    }
+    fn is_tap(ifname: &str) -> Result<bool> {
+        Self::has_group(ifname, "tap")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[cfg(any(target_os = "macos", target_os = "ios"))]
-    const default_iface: &str = "lo0";
+    const DEFAULT_IFACE: &str = "lo0";
     #[cfg(not(any(target_os = "macos", target_os = "ios")))]
-    const default_iface: &str = "lo";
+    const DEFAULT_IFACE: &str = "lo";
 
     #[test]
     fn test_not_found() {
@@ -222,7 +258,7 @@ mod tests {
 
     #[test]
     fn test_found() {
-        match Iface::find_by_name(default_iface) {
+        match Iface::find_by_name(DEFAULT_IFACE) {
             Ok(_) => {}
             _ => panic!("bad error type"),
         }
@@ -230,30 +266,30 @@ mod tests {
 
     #[test]
     fn test_is_up() {
-        let iface = Iface::find_by_name(default_iface).unwrap();
+        let iface = Iface::find_by_name(DEFAULT_IFACE).unwrap();
         assert!(iface.is_up().unwrap());
     }
 
     #[test]
     fn test_up() {
-        let iface = Iface::find_by_name(default_iface).unwrap();
+        let iface = Iface::find_by_name(DEFAULT_IFACE).unwrap();
         iface.up().unwrap();
     }
 
     // #[test]
     // fn test_down() {
-    //     let iface = Iface::find_by_name(default_iface).unwrap();
+    //     let iface = Iface::find_by_name(DEFAULT_IFACE).unwrap();
     //     iface.down().unwrap();
     // }
 
     // #[test]
     // fn test_promiscuous() {
-    //     let iface = Iface::find_by_name(default_iface).unwrap();
+    //     let iface = Iface::find_by_name(DEFAULT_IFACE).unwrap();
     //     iface.set_promiscuous_mode(true).unwrap();
     // }
 
     #[test]
     fn test_list_all() {
-        Iface::all().unwrap();
+        println!("Ifaces: {:?}", Iface::all().unwrap());
     }
 }

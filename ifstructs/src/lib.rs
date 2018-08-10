@@ -12,6 +12,16 @@ mod macros;
 
 use std::{io, mem};
 
+impl ifreq {
+    pub fn from_name(name: &str) -> io::Result<ifreq> {
+        let mut req: ifreq = unsafe { mem::zeroed() };
+        req.set_name(name)?;
+        Ok(req)
+    }
+}
+
+pub type IfFlags = nix::net::if_::InterfaceFlags;
+
 cfg_if! {
     if #[cfg(any(target_os = "linux",
                  target_os = "android",
@@ -31,16 +41,6 @@ cfg_if! {
         // Unknown target_os
     }
 }
-
-impl ifreq {
-    pub fn from_name(name: &str) -> io::Result<ifreq> {
-        let mut req: ifreq = unsafe { mem::zeroed() };
-        req.set_name(name)?;
-        Ok(req)
-    }
-}
-
-pub type IfFlags = nix::net::if_::InterfaceFlags;
 
 #[cfg(test)]
 mod tests {
