@@ -217,6 +217,10 @@ impl Iface {
     fn is_tap(ifname: &str) -> Result<bool> {
         Ok(false)
     }
+
+    pub fn bind_to_device<S: std::os::unix::io::AsRawFd>(&mut self, socket: &S) -> Result<()> {
+        Ok(impls::bind_to_device(socket, &self.ifname)?)
+    }
 }
 
 #[cfg(target_os = "freebsd")]

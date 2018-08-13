@@ -71,6 +71,22 @@ pub fn remove_iface_from_bridge<F: AsRawFd>(ctl_fd: &F, bridge_ifname: &str, ifa
 //     }
 // }
 
+pub fn bind_to_device<S: AsRawFd>(socket: &S, iface_name: &str) -> Result<()> {
+    let cstr = CString::new(iface_name).unwrap();
+    let res = unsafe {
+        libc::setsockopt(
+            socket.as_raw_fd(),
+            libc::SOL_SOCKET,
+            libc::SO_BINDTODEVICE,
+            cstr.as_bytes().as_ptr() as *const _ as *const _,
+            iface_name.len() as u32,
+        )
+    };
+    if res != 0 {
+        bail!(::std::io::Error::last_os_error());
+    }
+    Ok(())
+}
 
 // #[cfg(test)]
 // mod tests {
