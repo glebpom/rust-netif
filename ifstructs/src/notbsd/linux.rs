@@ -92,3 +92,25 @@ bitflags! {
         const RTF_REJECT    = 0x0200;
     }
 }
+
+pub const ETHTOOL_FWVERS_LEN: usize = 32;
+pub const ETHTOOL_BUSINFO_LEN: usize = 32;
+pub const ETHTOOL_EROMVERS_LEN: usize = 32;
+
+#[repr(C)]
+pub struct ethtool_drvinfo {
+    pub cmd: u32,
+    pub driver: [u8; 32],
+    pub version: [u8; 32],
+    pub fw_version: [u8; ETHTOOL_FWVERS_LEN],
+    pub bus_info: [u8; ETHTOOL_BUSINFO_LEN],
+    pub erom_version: [u8; ETHTOOL_EROMVERS_LEN],
+    pub reserved2: [u8; 12],
+    pub n_priv_flags: u32,
+    pub n_stats: u32,
+    pub testinfo_len: u32,
+    pub eedump_len: u32,
+    pub regdump_len: u32,
+}
+
+pub const ETHTOOL_GDRVINFO: u32 = 0x00000003; /* Get driver info. */

@@ -23,23 +23,12 @@ use std::net::IpAddr;
 
 #[derive(Debug, Clone)]
 pub enum Link {
-    Ethernet(Ethernet),
-    Loopback,
-    Unknown,
-}
-
-#[derive(Debug, Clone)]
-pub struct Ethernet {
-    hw_addr: MacAddress,
-    ether_type: EthernetDevice,
-}
-
-#[derive(Debug, Clone)]
-pub enum EthernetDevice {
     Regular,
     Tun,
     Tap,
     Bridge,
+    Loopback,
+    Ethernet,
 }
 
 #[cfg(unix)]
@@ -47,6 +36,7 @@ pub enum EthernetDevice {
 pub struct Iface {
     ifname: String,
     ip_addrs: Vec<IpAddr>,
+    hw_addr: Option<MacAddress>,
     flags: IfFlags,
     link: Link,
 }
@@ -84,27 +74,29 @@ impl Iface {
                 .iter()
                 .map(|inet_addr| inet_addr.to_std().ip())
                 .collect();
-            let hw_addr = hw.get(&ifname).map(|addr| MacAddress::new(addr.addr()));
+            let hw_addr = hw.get(&ifname)
+                .and_then(|hw| {
+                    if hw.addr() == [0, 0, 0, 0, 0, 0] {
+                        None
+                    } else {
+                        Some(hw)
+                    }
+                })
+                .map(|addr| MacAddress::new(addr.addr()));
             let link = if flags.contains(IfFlags::IFF_LOOPBACK) {
                 Link::Loopback
-            } else if let Some(hw_addr) = hw_addr {
-                Link::Ethernet(Ethernet {
-                    hw_addr: hw_addr,
-                    ether_type: if Self::is_bridge(&ifname)? {
-                        EthernetDevice::Bridge
-                    } else if Self::is_tap(&ifname)? {
-                        EthernetDevice::Tap
-                    } else if Self::is_tun(&ifname)? {
-                        EthernetDevice::Tun
-                    } else {
-                        EthernetDevice::Regular
-                    },
-                })
+            } else if Self::is_bridge(&ifname)? {
+                Link::Bridge
+            } else if Self::is_tap(&ifname)? {
+                Link::Tap
+            } else if Self::is_tun(&ifname)? {
+                Link::Tun
             } else {
-                Link::Unknown
+                Link::Ethernet
             };
 
             let iface = Iface {
+                hw_addr,
                 ip_addrs,
                 ifname,
                 flags,
@@ -132,10 +124,7 @@ impl Iface {
     }
 
     pub fn hw_addr(&self) -> Option<MacAddress> {
-        match self.link {
-            Link::Ethernet(Ethernet { hw_addr, .. }) => Some(hw_addr),
-            _ => None,
-        }
+        self.hw_addr
     }
 
     pub fn is_up(&self) -> Result<bool> {
@@ -210,13 +199,19 @@ impl Iface {
 #[cfg(target_os = "linux")]
 impl Iface {
     fn is_bridge(ifname: &str) -> Result<bool> {
-        Ok(false)
+        let ctl_fd = impls::new_control_socket()?;
+        let drv = impls::get_ethernet_driver(&ctl_fd, ifname)?;
+        Ok(drv.driver == "bridge")
     }
     fn is_tun(ifname: &str) -> Result<bool> {
-        Ok(false)
+        let ctl_fd = impls::new_control_socket()?;
+        let drv = impls::get_ethernet_driver(&ctl_fd, ifname)?;
+        Ok(drv.driver == "tun" && drv.bus_info == "tun")
     }
     fn is_tap(ifname: &str) -> Result<bool> {
-        Ok(false)
+        let ctl_fd = impls::new_control_socket()?;
+        let drv = impls::get_ethernet_driver(&ctl_fd, ifname)?;
+        Ok(drv.driver == "tun" && drv.bus_info == "tap")
     }
 
     pub fn bind_to_device<S: std::os::unix::io::AsRawFd>(&mut self, socket: &S) -> Result<()> {

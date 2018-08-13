@@ -1,5 +1,5 @@
 use errors::{ErrorKind, Result};
-use ifstructs::{ifreq, rtentry};
+use ifstructs::{ifreq, rtentry, ethtool_drvinfo, ETHTOOL_GDRVINFO};
 use libc;
 use std::ffi::CString;
 use std::mem;
@@ -24,6 +24,9 @@ ioctl_write_ptr_bad!(ioctl_add_iface_to_bridge, 0x89a2, ifreq);
 ioctl_write_ptr_bad!(ioctl_remove_iface_from_bridge, 0x89a3, ifreq);
 // #define SIOCGIFINDEX	0x8933		/* name -> if_index mapping	*/
 ioctl_readwrite_bad!(ioctl_get_iface_index, 0x8933, ifreq);
+
+// #define SIOCETHTOOL	0x8946		/* Ethtool interface		*/
+ioctl_readwrite_bad!(ioctl_ethtool, 0x8946, ifreq);
 
 pub fn create_bridge<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
     let s = CString::new(ifname).unwrap();
@@ -91,19 +94,37 @@ pub fn get_iface_index<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<libc::c_i
     Ok(unsafe { req.ifr_ifru.ifr_ifindex }.into())
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[derive(Debug, Clone)]
+pub struct DriverInfo {
+    pub driver: String,
+    pub bus_info: String, 
+}
 
-//     #[test]
-//     fn test_bridge() {
-//         let ctl_fd = ::impls::new_control_socket().unwrap();
-//         create_bridge(&ctl_fd, "lcstrbr0").expect("create bridge");
-//         ::Iface::find_by_name("lcstrbr0").unwrap().up().expect("up bridge");
-//         println!("iface index = {}", get_iface_index(&ctl_fd, "tap1").expect("idx"));
-//         add_iface_to_bridge(&ctl_fd, "lcstrbr0", "tap1").expect("add tap1 to bridge");
-//         remove_iface_from_bridge(&ctl_fd, "lcstrbr0", "tap1").expect("remove tap1 from bridge");
-//         ::Iface::find_by_name("lcstrbr0").unwrap().down().expect("down bridge");
-//         remove_bridge(&ctl_fd, "lcstrbr0").expect("remove bridge");
-//     }
-// }
+pub fn get_ethernet_driver<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<DriverInfo> {
+    let mut req = ifreq::from_name(ifname)?;
+    let mut ereq: ethtool_drvinfo = unsafe { mem::zeroed() };
+    ereq.cmd = ETHTOOL_GDRVINFO;
+    req.ifr_ifru.ifr_data = &mut ereq as *mut _ as *mut _;
+    unsafe { ::impls::ioctl_ethtool(ctl_fd.as_raw_fd(), &mut req)? };
+    Ok(DriverInfo {
+        driver: get_name!(ereq.driver)?,
+        bus_info: get_name!(ereq.bus_info)?
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    // use super::*;
+
+    // #[test]
+    // fn test_bridge() {
+    //     let ctl_fd = ::impls::new_control_socket().unwrap();
+    //     create_bridge(&ctl_fd, "lcstrbr0").expect("create bridge");
+    //     ::Iface::find_by_name("lcstrbr0").unwrap().up().expect("up bridge");
+    //     println!("iface index = {}", get_iface_index(&ctl_fd, "tap1").expect("idx"));
+    //     add_iface_to_bridge(&ctl_fd, "lcstrbr0", "tap1").expect("add tap1 to bridge");
+    //     remove_iface_from_bridge(&ctl_fd, "lcstrbr0", "tap1").expect("remove tap1 from bridge");
+    //     ::Iface::find_by_name("lcstrbr0").unwrap().down().expect("down bridge");
+    //     remove_bridge(&ctl_fd, "lcstrbr0").expect("remove bridge");
+    // }
+}
