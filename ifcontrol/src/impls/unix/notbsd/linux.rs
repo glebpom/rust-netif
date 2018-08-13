@@ -1,28 +1,28 @@
-use ifstructs::{ifreq};
+use errors::{ErrorKind, Result};
+use ifstructs::{ifreq, rtentry};
 use libc;
-use errors::{Result, ErrorKind};
 use std::ffi::CString;
 use std::os::unix::io::AsRawFd;
+use std::mem;
 
-// #define SIOCGIFINDEX	0x8933		/* name -> if_index mapping	*/
-ioctl_readwrite_bad!(ioctl_get_iface_index, 0x8933, ifreq);
+// #define SIOCGIFNAME	0x8910		/* get iface name		*/
+ioctl_readwrite_bad!(ioctl_get_iface_name, 0x890B, ifreq);
+
+// #define SIOCADDRT	0x890B		/* add routing table entry	*/
+ioctl_write_ptr_bad!(ioctl_add_routing_entry, 0x890B, rtentry);
+// #define SIOCDELRT	0x890C		/* delete routing table entry	*/
+ioctl_write_ptr_bad!(ioctl_del_routing_entry, 0x890C, rtentry);
 
 // #define SIOCBRADDBR     0x89a0		/* create new bridge device     */
 ioctl_write_ptr_bad!(ioctl_create_bridge, 0x89a0, libc::c_char);
 // #define SIOCBRDELBR     0x89a1		/* remove bridge device         */
 ioctl_write_ptr_bad!(ioctl_remove_bridge, 0x89a1, libc::c_char);
 
-
 // #define SIOCBRADDIF	0x89a2		/* add interface to bridge      */
 ioctl_write_ptr_bad!(ioctl_add_iface_to_bridge, 0x89a2, ifreq);
 // #define SIOCBRDELIF	0x89a3		/* remove interface from bridge */
 ioctl_write_ptr_bad!(ioctl_remove_iface_from_bridge, 0x89a3, ifreq);
 
-pub fn get_iface_index<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<libc::c_int> {
-    let mut req = ifreq::from_name(ifname)?;
-    unsafe { ioctl_get_iface_index(ctl_fd.as_raw_fd(), &mut req)? };
-    Ok(unsafe { req.ifr_ifru.ifr_ifindex })
-}
 
 pub fn create_bridge<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
     let s = CString::new(ifname).unwrap();
@@ -36,7 +36,11 @@ pub fn remove_bridge<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn add_iface_to_bridge<F: AsRawFd>(ctl_fd: &F, bridge_ifname: &str, iface_ifname: &str) -> Result<()> {
+pub fn add_iface_to_bridge<F: AsRawFd>(
+    ctl_fd: &F,
+    bridge_ifname: &str,
+    iface_ifname: &str,
+) -> Result<()> {
     let iface_idx = get_iface_index(ctl_fd, iface_ifname)?;
     let mut req = ifreq::from_name(bridge_ifname)?;
     req.ifr_ifru.ifr_ifindex = iface_idx;
@@ -44,32 +48,17 @@ pub fn add_iface_to_bridge<F: AsRawFd>(ctl_fd: &F, bridge_ifname: &str, iface_if
     Ok(())
 }
 
-pub fn remove_iface_from_bridge<F: AsRawFd>(ctl_fd: &F, bridge_ifname: &str, iface_ifname: &str) -> Result<()> {
+pub fn remove_iface_from_bridge<F: AsRawFd>(
+    ctl_fd: &F,
+    bridge_ifname: &str,
+    iface_ifname: &str,
+) -> Result<()> {
     let iface_idx = get_iface_index(ctl_fd, iface_ifname)?;
     let mut req = ifreq::from_name(bridge_ifname)?;
     req.ifr_ifru.ifr_ifindex = iface_idx;
     unsafe { ioctl_remove_iface_from_bridge(ctl_fd.as_raw_fd(), &mut req)? };
     Ok(())
 }
-
-
-// bitflags! {
-//     // https://github.com/torvalds/linux/blob/master/include/uapi/linux/route.h
-//     // u16
-//     pub struct Flags: i32 {
-//         const RTF_UP        = sys::RTF_UP as i32;
-//         const RTF_GATEWAY   = sys::RTF_GATEWAY as i32;
-//         const RTF_HOST      = sys::RTF_HOST as i32;
-//         const RTF_REINSTATE = sys::RTF_REINSTATE as i32;
-//         const RTF_DYNAMIC   = sys::RTF_DYNAMIC as i32;
-//         const RTF_MODIFIED  = sys::RTF_MODIFIED as i32;
-//         const RTF_MTU       = sys::RTF_MTU as i32;
-//         const RTF_MSS       = sys::RTF_MSS as i32;
-//         const RTF_WINDOW    = sys::RTF_WINDOW as i32;
-//         const RTF_IRTT      = sys::RTF_IRTT as i32;
-//         const RTF_REJECT    = sys::RTF_REJECT as i32;
-//     }
-// }
 
 pub fn bind_to_device<S: AsRawFd>(socket: &S, iface_name: &str) -> Result<()> {
     let cstr = CString::new(iface_name).unwrap();
@@ -86,6 +75,19 @@ pub fn bind_to_device<S: AsRawFd>(socket: &S, iface_name: &str) -> Result<()> {
         bail!(::std::io::Error::last_os_error());
     }
     Ok(())
+}
+
+pub fn get_iface_name<F: AsRawFd>(ctl_fd: &F, idx: libc::c_int) -> Result<String> {
+    let mut req: ifreq = unsafe { mem::zeroed() };
+    unsafe { req.set_iface_index(idx) };
+    unsafe { ::impls::ioctl_get_iface_index(ctl_fd.as_raw_fd(), &mut req)? };
+    Ok(req.get_name()?)
+}
+
+pub fn get_iface_index<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<libc::c_int> {
+    let mut req = ifreq::from_name(ifname)?;
+    unsafe { ::impls::ioctl_get_iface_index(ctl_fd.as_raw_fd(), &mut req)? };
+    Ok(unsafe { req.ifr_ifru.ifr_ifindex })
 }
 
 // #[cfg(test)]

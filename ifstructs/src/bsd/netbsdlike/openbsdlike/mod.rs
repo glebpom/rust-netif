@@ -4,7 +4,7 @@ pub union ifra_ifrau {
 }
 
 pub struct ifaliasreq {
-    pub ifra_name: [u8; libc::IFNAMSIZ],
+    pub ifra_name: ::IfName,
     pub ifra_ifrau: ifra_ifrau,
     pub ifra_broadaddr: libc::sockaddr, //originally ifra_dstaddr
     pub ifra_mask: libc::sockaddr,

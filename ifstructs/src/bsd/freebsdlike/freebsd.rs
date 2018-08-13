@@ -43,7 +43,7 @@ pub union ifr_ifru {
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct ifaliasreq {
-    pub ifra_name: [u8; libc::IFNAMSIZ],
+    pub ifra_name: ::IfName,
     pub ifra_addr: libc::sockaddr,
     pub ifra_broadaddr: libc::sockaddr,
     pub ifra_mask: libc::sockaddr,
@@ -53,7 +53,7 @@ pub struct ifaliasreq {
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct ifdrv {
-    pub ifd_name: [u8; libc::IFNAMSIZ],
+    pub ifd_name: ::IfName,
     pub ifd_cmd: libc::c_ulong,
     pub ifd_len: libc::size_t,
     pub ifd_data: *mut libc::c_void,
@@ -78,7 +78,7 @@ impl ifdrv {
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct ifbreq {
-    pub ifbr_ifsname: [u8; libc::IFNAMSIZ],
+    pub ifbr_ifsname: ::IfName,
     pub ifbr_ifsflags: libc::uint32_t,
     pub ifbr_stpflags: libc::uint32_t,
     pub ifbr_path_cost: libc::uint32_t,
@@ -148,8 +148,8 @@ pub mod brcmd {
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub union ifgrq_ifgrqu {
-    pub ifgrqu_group: [u8; libc::IFNAMSIZ],
-    pub ifgrqu_member: [u8; libc::IFNAMSIZ],
+    pub ifgrqu_group: ::IfName,
+    pub ifgrqu_member: ::IfName,
 }
 
 impl ifgrq_ifgrqu {
@@ -191,7 +191,7 @@ pub struct ifg_req {
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub union ifgr_ifgru {
-    pub ifgru_group: [u8; libc::IFNAMSIZ],
+    pub ifgru_group: ::IfName,
     pub ifgru_groups: *mut ifg_req,
 }
 
@@ -230,7 +230,7 @@ impl ifgr_ifgru {
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct ifgroupreq {
-    pub ifgr_name: [u8; libc::IFNAMSIZ],
+    pub ifgr_name: ::IfName,
     pub ifgr_len: libc::c_uint,
     pub ifgr_ifgru: ifgr_ifgru,
 }

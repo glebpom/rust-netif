@@ -34,15 +34,15 @@ pub union ifrn_ifru {
     pub ifru_ivalue: libc::c_int,
     pub ifru_mtu: libc::c_int,
     pub ifru_map: ::ifmap,
-    pub ifrn_slave: [u8; libc::IFNAMSIZ],
-    pub ifrn_newname: [u8; libc::IFNAMSIZ],
+    pub ifrn_slave: ::IfName,
+    pub ifrn_newname: ::IfName,
     pub ifru_data: *mut libc::c_void,
     pub ifru_settings: if_settings,
 }
 
 #[repr(C)]
 pub union ifr_ifrn {
-    pub ifrn_name: [u8; libc::IFNAMSIZ],
+    pub ifrn_name: ::IfName,
 }
 
 #[repr(C)]

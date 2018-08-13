@@ -12,6 +12,8 @@ mod macros;
 
 use std::{io, mem};
 
+pub type IfName = [u8; libc::IFNAMSIZ];
+
 impl ifreq {
     pub fn from_name(name: &str) -> io::Result<ifreq> {
         let mut req: ifreq = unsafe { mem::zeroed() };

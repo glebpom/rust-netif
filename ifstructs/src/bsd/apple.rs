@@ -39,7 +39,7 @@ impl ::ifreq {
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct ifaliasreq {
-    pub ifra_name: [u8; libc::IFNAMSIZ],
+    pub ifra_name: ::IfName,
     pub ifra_addr: libc::sockaddr,
     pub ifra_broadaddr: libc::sockaddr,
     pub ifra_mask: libc::sockaddr,

@@ -13,14 +13,14 @@ pub union ifr_ifru {
     pub ifr_metric: libc::c_int,
     pub ifr_mtu: libc::c_int,
     pub ifr_map: ::ifmap,
-    pub ifr_slave: [libc::c_char; libc::IFNAMSIZ],
-    pub ifr_newname: [libc::c_char; libc::IFNAMSIZ],
+    pub ifr_slave: ::IfName,
+    pub ifr_newname: ::IfName,
     pub ifr_data: *mut libc::c_char,
 }
 
 #[repr(C)]
 pub struct ifreq {
-    pub ifr_name: [u8; libc::IFNAMSIZ],
+    pub ifr_name: ::IfName,
     pub ifr_ifru: ifr_ifru,
 }
 
@@ -50,5 +50,41 @@ impl ::ifreq {
 
     pub unsafe fn set_addr(&mut self, addr: libc::sockaddr) {
         self.ifr_ifru.ifr_addr = addr;
+    }
+
+    pub unsafe fn set_iface_index(&mut self, idx: libc::c_int) {
+        self.ifr_ifru.ifr_ifindex = idx;
+    }
+}
+
+#[repr(C)]
+pub struct rtentry {
+    rt_pad1: libc::c_ulong,
+    rt_dst: libc::sockaddr,
+    rt_gateway: libc::sockaddr,
+    rt_genmask: libc::sockaddr,
+    rt_flags: libc::c_ushort,
+    rt_pad2: libc::c_short,
+    rt_pad3: libc::c_ulong,
+    rt_pad4: *const libc::c_void,
+    rt_metric: libc::c_short,
+    rt_dev: *mut libc::c_char,
+    rt_mtu: libc::c_ulong,
+    rt_window: libc::c_ulong,
+    rt_irtt: libc::c_ushort,
+}
+
+bitflags! {
+    pub struct RtFlags: libc::c_ushort {
+        const RTF_UP        = 0x0001;
+        const RTF_GATEWAY   = 0x0002;
+        const RTF_HOST      = 0x0004;
+        const RTF_REINSTATE = 0x0008;
+        const RTF_DYNAMIC   = 0x0010;
+        const RTF_MODIFIED  = 0x0020;
+        const RTF_MTU       = 0x0040; //RTF_MTU alias
+        const RTF_WINDOW    = 0x0080;
+        const RTF_IRTT      = 0x0100;
+        const RTF_REJECT    = 0x0200;
     }
 }
