@@ -1,5 +1,3 @@
-
-
 use errors::Result;
 use ifstructs::ifreq;
 use ifstructs::IfFlags;

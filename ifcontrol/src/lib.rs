@@ -1,5 +1,6 @@
 extern crate eui48;
 #[cfg(unix)]
+#[macro_use]
 extern crate ifstructs;
 extern crate libc;
 #[macro_use]
@@ -42,7 +43,7 @@ pub enum EthernetDevice {
 }
 
 #[cfg(unix)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Iface {
     ifname: String,
     ip_addrs: Vec<IpAddr>,

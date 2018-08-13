@@ -1,8 +1,10 @@
 use errors::Result;
 use ifstructs::{
-    self, brcmd, ifaliasreq, ifbreq, ifdrv, ifgroupreq, ifreq, rt_msghdr, RtfFlags, RtmAddrFlags,
+    self, brcmd, ifaliasreq, ifbreq, ifdrv, ifgroupreq, ifreq, rt_msghdr, IfName, RtfFlags,
+    RtmAddrFlags,
 };
 use libc;
+use nix;
 use nix::sys::socket::SockAddr;
 use std::ffi::CString;
 use std::io::Seek;
@@ -23,6 +25,8 @@ ioctl_write_ptr!(ioctl_iface_drvspec, b'i', 123, ifdrv);
 ioctl_write_ptr!(ioctl_iface_destroy, b'i', 121, ifreq);
 // #define	SIOCGIFGROUP	_IOWR('i', 136, struct ifgroupreq) /* get ifgroups */
 ioctl_readwrite!(ioctl_iface_get_groups, b'i', 136, ifgroupreq);
+// #define	SIOCGIFINDEX	_IOWR('i', 32, struct ifreq)	/* get IF index */
+ioctl_write_ptr!(ioctl_get_iface_index, b'i', 32, ifreq);
 
 pub fn get_iface_groups<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<Vec<String>> {
     let mut req = ifgroupreq::from_name(&ifname)?;
@@ -95,13 +99,13 @@ pub fn remove_iface_from_bridge<F: AsRawFd>(
     Ok(())
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct RouteRecord {
     destination: Option<SockAddr>,
     gateway: Option<SockAddr>,
     netmask: Option<SockAddr>,
     iface_addr: Option<SockAddr>,
-    ifindex: u16,
+    iface: ::Iface,
     flags: RtfFlags,
 }
 
@@ -124,7 +128,7 @@ pub fn read_sockaddr_if_flag(
     }
 }
 
-pub fn list_routes() -> Result<Vec<RouteRecord>> {
+pub fn list_routes<F: AsRawFd>(ctl_fd: &F) -> Result<Vec<RouteRecord>> {
     let family = 0;
     let flags = 0;
     let mut lenp: usize = 0;
@@ -153,7 +157,7 @@ pub fn list_routes() -> Result<Vec<RouteRecord>> {
     };
 
     if ret < 0 {
-        return Err(io::Error::last_os_error().into());
+        return Err(nix::Error::last().into());
     }
 
     let buf = vec![0u8; lenp];
@@ -170,7 +174,7 @@ pub fn list_routes() -> Result<Vec<RouteRecord>> {
         )
     };
     if ret < 0 {
-        return Err(io::Error::last_os_error().into());
+        return Err(nix::Error::last().into());
     }
 
     let mut routing_table = vec![];
@@ -204,17 +208,38 @@ pub fn list_routes() -> Result<Vec<RouteRecord>> {
         if unprocessed_bytes > 0 {
             i += unprocessed_bytes;
         }
+
         routing_table.push(RouteRecord {
             destination,
             gateway,
             netmask,
             iface_addr,
-            ifindex: hdr.rtm_index,
+            iface: ::Iface::find_by_name(&get_iface_name(ctl_fd, hdr.rtm_index as libc::c_short)?)?,
             flags: rtm_flags,
         });
     }
 
     Ok(routing_table)
+}
+
+pub fn get_iface_name<F: AsRawFd>(ctl_fd: &F, idx: libc::c_short) -> Result<String> {
+    let mut ifname: IfName = unsafe { mem::zeroed() };
+    let res = unsafe { if_indextoname(idx as libc::c_uint, ifname.as_mut_ptr() as *mut _) };
+    if res.is_null() {
+        return Err(nix::Error::last().into());
+    }
+    let res = get_name!(ifname);
+    Ok(res?)
+}
+
+pub fn get_iface_index<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<libc::c_short> {
+    let mut req = ifreq::from_name(ifname)?;
+    unsafe { ::impls::ioctl_get_iface_index(ctl_fd.as_raw_fd(), &mut req)? };
+    Ok(unsafe { req.ifr_ifru.ifru_index }.into())
+}
+
+extern "C" {
+    fn if_indextoname(ifindex: libc::c_uint, ifname: *mut libc::c_char) -> *mut libc::c_char;
 }
 
 #[cfg(test)]
@@ -242,7 +267,8 @@ mod tests {
 
     #[test]
     fn test_routes() {
-        let routes = list_routes().expect("routes!");
+        let ctl_fd = ::impls::new_control_socket().unwrap();
+        let routes = list_routes(&ctl_fd).expect("routes!");
         println!("routes = {:?}", routes);
     }
 }

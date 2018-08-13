@@ -362,3 +362,13 @@ bitflags! {
         const RTA_BRD = 0x80;
     }
 }
+
+impl ::ifreq {
+    pub unsafe fn set_iface_index(&mut self, idx: libc::c_short) {
+        self.ifr_ifru.ifru_index = idx;
+    }
+
+    pub unsafe fn get_iface_index(&mut self) -> libc::c_short {
+        self.ifr_ifru.ifru_index
+    }
+}

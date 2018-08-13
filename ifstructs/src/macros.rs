@@ -1,3 +1,4 @@
+#[macro_export]
 macro_rules! set_name {
     ($name_field:expr, $name_str:expr) => {{
         let name_c = &::std::ffi::CString::new($name_str.to_owned()).map_err(|_| {
@@ -8,7 +9,7 @@ macro_rules! set_name {
         })?;
         let name_slice = name_c.as_bytes_with_nul();
         if name_slice.len() > libc::IFNAMSIZ {
-            return Err(io::Error::new(::std::io::ErrorKind::InvalidInput, ""));
+            return Err(io::Error::new(::std::io::ErrorKind::InvalidInput, "").into());
         }
         $name_field[..name_slice.len()].clone_from_slice(name_slice);
 
@@ -16,6 +17,7 @@ macro_rules! set_name {
     }};
 }
 
+#[macro_export]
 macro_rules! get_name {
     ($name_field:expr) => {{
         let nul_pos = match $name_field.iter().position(|x| *x == 0) {
@@ -24,7 +26,7 @@ macro_rules! get_name {
                 return Err(::std::io::Error::new(
                     ::std::io::ErrorKind::InvalidData,
                     "malformed interface name",
-                ))
+                ).into())
             }
         };
 

@@ -55,6 +55,10 @@ impl ::ifreq {
     pub unsafe fn set_iface_index(&mut self, idx: libc::c_int) {
         self.ifr_ifru.ifr_ifindex = idx;
     }
+
+    pub unsafe fn get_iface_index(&mut self) -> libc::c_int {
+        self.ifr_ifru.ifr_ifindex
+    }
 }
 
 #[repr(C)]
