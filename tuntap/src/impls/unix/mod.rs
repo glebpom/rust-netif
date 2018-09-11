@@ -19,13 +19,12 @@ pub use self::linux::*;
 #[cfg(target_os = "macos")]
 pub use self::macos::*;
 
-use bytes::{Bytes, BytesMut, IntoBuf};
 use futures::{Async, AsyncSink, Poll, Sink, StartSend, Stream};
 use mio;
 use mio::event::Evented;
 use mio::unix::EventedFd;
 use std::io;
-use std::io::{Read, Write};
+use std::io::{Read, Write, Cursor};
 use std::os::unix::io::{AsRawFd, RawFd};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::reactor::PollEvented2;
@@ -121,7 +120,7 @@ where
     C: ::DescriptorCloser,
 {
     inner: PollEvented2<EventedDescriptor<C>>,
-    incoming: Option<io::Cursor<Bytes>>,
+    incoming: Option<io::Cursor<Vec<u8>>>,
 }
 
 impl<C> From<PollEvented2<EventedDescriptor<C>>> for AsyncDescriptor<C>
@@ -140,15 +139,15 @@ impl<C> Stream for AsyncDescriptor<C>
 where
     C: ::DescriptorCloser,
 {
-    type Item = Bytes;
+    type Item = Vec<u8>;
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        let mut buf = BytesMut::with_capacity(2000);
+        let mut buf = Vec::with_capacity(2000);
         self.inner.read_buf(&mut buf).and_then(|res| {
             if let Async::Ready(n) = res {
                 if n > 0 {
-                    return Ok(Async::Ready(Some(buf.freeze())));
+                    return Ok(Async::Ready(Some(buf)));
                 }
             }
             Ok(Async::NotReady)
@@ -160,7 +159,7 @@ impl<C> Sink for AsyncDescriptor<C>
 where
     C: ::DescriptorCloser,
 {
-    type SinkItem = Bytes;
+    type SinkItem = Vec<u8>;
     type SinkError = io::Error;
 
     fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, io::Error> {
@@ -170,7 +169,7 @@ where
                 return Ok(AsyncSink::NotReady(item));
             }
         }
-        self.incoming = Some(item.into_buf());
+        self.incoming = Some(Cursor::new(item));
         self.poll_complete()?;
         Ok(AsyncSink::Ready)
     }
