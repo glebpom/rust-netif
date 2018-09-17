@@ -45,12 +45,12 @@ use std::thread;
 #[fail(display = "tuntap error")]
 pub enum TunTapError {
     #[cfg(unix)]
-    #[fail(display = "nix error")]
-    Nix(::nix::Error),
-    #[fail(display = "io error")]
-    Io(::std::io::Error),
-    #[fail(display = "ifcontrol error")]
-    IfControl(ifcontrol::IfError),
+    #[fail(display = "nix error: {}", _0)]
+    Nix(#[cause] ::nix::Error),
+    #[fail(display = "io error: {}", _0)]
+    Io(#[cause] ::std::io::Error),
+    #[fail(display = "ifcontrol error: {}", _0)]
+    IfControl(#[cause] ifcontrol::IfError),
     #[fail(display = "not found: {}", msg)]
     NotFound { msg: String },
     #[fail(display = "max number {} of virtual interfaces reached", max)]

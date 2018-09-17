@@ -11,18 +11,16 @@ extern crate nix;
 extern crate failure;
 extern crate ipnetwork;
 
-use failure::Error;
-
 mod impls;
 
 #[derive(Debug, Fail)]
 #[fail(display = "interface control error")]
 pub enum IfError {
     #[cfg(unix)]
-    #[fail(display = "nix error")]
-    Nix(::nix::Error),
-    #[fail(display = "io error")]
-    Io(::std::io::Error),
+    #[fail(display = "nix error: {}", _0)]
+    Nix(#[cause] ::nix::Error),
+    #[fail(display = "io error: {}", _0)]
+    Io(#[cause] ::std::io::Error),
     #[fail(display = "iface not found")]
     NotFound,
 }
@@ -92,21 +90,22 @@ impl Iface {
 
         let mut ifaces = Vec::new();
         for (ifname, flags) in flags {
-            let ip_addrs = ips.get(&ifname)
+            let ip_addrs = ips
+                .get(&ifname)
                 .cloned()
                 .unwrap_or_default()
                 .iter()
                 .map(|inet_addr| inet_addr.to_std().ip())
                 .collect();
-            let hw_addr = hw.get(&ifname)
+            let hw_addr = hw
+                .get(&ifname)
                 .and_then(|hw| {
                     if hw.addr() == [0, 0, 0, 0, 0, 0] {
                         None
                     } else {
                         Some(hw)
                     }
-                })
-                .map(|addr| MacAddress::new(addr.addr()));
+                }).map(|addr| MacAddress::new(addr.addr()));
             let link = if flags.contains(IfFlags::IFF_LOOPBACK) {
                 Link::Loopback
             } else if Self::is_bridge(&ifname)? {
