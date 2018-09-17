@@ -1,4 +1,4 @@
-use errors::{ErrorKind, Result};
+use IfError, Result;
 use ifstructs::{ifreq, rtentry, ethtool_drvinfo, ETHTOOL_GDRVINFO};
 use libc;
 use std::ffi::CString;
@@ -28,13 +28,13 @@ ioctl_readwrite_bad!(ioctl_get_iface_index, 0x8933, ifreq);
 // #define SIOCETHTOOL	0x8946		/* Ethtool interface		*/
 ioctl_readwrite_bad!(ioctl_ethtool, 0x8946, ifreq);
 
-pub fn create_bridge<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
+pub fn create_bridge<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<(), IfError> {
     let s = CString::new(ifname).unwrap();
     unsafe { ioctl_create_bridge(ctl_fd.as_raw_fd(), s.as_ptr())? };
     Ok(())
 }
 
-pub fn remove_bridge<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
+pub fn remove_bridge<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<(), IfError> {
     let s = CString::new(ifname).unwrap();
     unsafe { ioctl_remove_bridge(ctl_fd.as_raw_fd(), s.as_ptr())? };
     Ok(())
@@ -44,7 +44,7 @@ pub fn add_iface_to_bridge<F: AsRawFd>(
     ctl_fd: &F,
     bridge_ifname: &str,
     iface_ifname: &str,
-) -> Result<()> {
+) -> Result<(), IfError> {
     let iface_idx = ::impls::get_iface_index(ctl_fd, iface_ifname)?;
     let mut req = ifreq::from_name(bridge_ifname)?;
     req.ifr_ifru.ifr_ifindex = iface_idx;
@@ -56,7 +56,7 @@ pub fn remove_iface_from_bridge<F: AsRawFd>(
     ctl_fd: &F,
     bridge_ifname: &str,
     iface_ifname: &str,
-) -> Result<()> {
+) -> Result<(), IfError> {
     let iface_idx = ::impls::get_iface_index(ctl_fd, iface_ifname)?;
     let mut req = ifreq::from_name(bridge_ifname)?;
     req.ifr_ifru.ifr_ifindex = iface_idx;
@@ -64,7 +64,7 @@ pub fn remove_iface_from_bridge<F: AsRawFd>(
     Ok(())
 }
 
-pub fn bind_to_device<S: AsRawFd>(socket: &S, iface_name: &str) -> Result<()> {
+pub fn bind_to_device<S: AsRawFd>(socket: &S, iface_name: &str) -> Result<(), IfError> {
     let cstr = CString::new(iface_name).unwrap();
     let res = unsafe {
         libc::setsockopt(
@@ -81,14 +81,14 @@ pub fn bind_to_device<S: AsRawFd>(socket: &S, iface_name: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn get_iface_name<F: AsRawFd>(ctl_fd: &F, idx: libc::c_int) -> Result<String> {
+pub fn get_iface_name<F: AsRawFd>(ctl_fd: &F, idx: libc::c_int) -> Result<String, IfError> {
     let mut req: ifreq = unsafe { mem::zeroed() };
     unsafe { req.set_iface_index(idx.into()) };
     unsafe { ::impls::ioctl_get_iface_name(ctl_fd.as_raw_fd(), &mut req)? };
     Ok(req.get_name()?)
 }
 
-pub fn get_iface_index<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<libc::c_int> {
+pub fn get_iface_index<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<libc::c_int, IfError> {
     let mut req = ifreq::from_name(ifname)?;
     unsafe { ::impls::ioctl_get_iface_index(ctl_fd.as_raw_fd(), &mut req)? };
     Ok(unsafe { req.ifr_ifru.ifr_ifindex }.into())
@@ -100,7 +100,7 @@ pub struct DriverInfo {
     pub bus_info: String, 
 }
 
-pub fn get_ethernet_driver<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<DriverInfo> {
+pub fn get_ethernet_driver<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<DriverInfo, IfError> {
     let mut req = ifreq::from_name(ifname)?;
     let mut ereq: ethtool_drvinfo = unsafe { mem::zeroed() };
     ereq.cmd = ETHTOOL_GDRVINFO;

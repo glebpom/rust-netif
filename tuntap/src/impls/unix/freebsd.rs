@@ -1,4 +1,3 @@
-use errors::{ErrorKind, Result};
 use ifcontrol::Iface;
 use ifstructs::ifreq;
 use impls::unix::*;
@@ -13,6 +12,7 @@ use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tokio::reactor::PollEvented2;
+use TunTapError;
 
 pub struct Native {}
 
@@ -27,7 +27,7 @@ impl Native {
         Native::default()
     }
 
-    pub fn create_tun(&self) -> Result<::Virtualnterface<::Descriptor<Native>>> {
+    pub fn create_tun(&self) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
         let (file, name) = self.create(::VirtualInterfaceType::Tun, false)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -40,7 +40,7 @@ impl Native {
         })
     }
 
-    pub fn create_tap(&self) -> Result<::Virtualnterface<::Descriptor<Native>>> {
+    pub fn create_tap(&self) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
         let (file, name) = self.create(::VirtualInterfaceType::Tap, false)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -54,7 +54,8 @@ impl Native {
 
     pub fn create_tun_async(
         &self,
-    ) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>> {
+    ) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>, TunTapError>
+    {
         let (file, name) = self.create(::VirtualInterfaceType::Tun, true)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -71,7 +72,8 @@ impl Native {
 
     pub fn create_tap_async(
         &self,
-    ) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>> {
+    ) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>, TunTapError>
+    {
         let (file, name) = self.create(::VirtualInterfaceType::Tap, true)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -104,19 +106,27 @@ extern "C" {
     pub fn devname(dev: dev_t, mode_type: mode_t) -> *mut c_char;
 }
 
-fn get_viface_name(file: &File) -> Result<String> {
+fn get_viface_name(file: &File) -> Result<String, TunTapError> {
     let st_rdev = fstat(file.as_raw_fd()).unwrap().st_rdev;
     let device_name = unsafe { devname(st_rdev, S_IFCHR) };
     if device_name.is_null() {
-        bail!(ErrorKind::NotFound("interface not found".to_owned()))
+        return TunTapError::NotFound {
+            msg: "interface not found".to_owned(),
+        };
     }
     unsafe { CString::from_raw(device_name) }
         .into_string()
-        .map_err(|_| ErrorKind::BadData("bad iface name returned from kernel".to_owned()).into())
+        .map_err(|_| TunTapError::BadData {
+            msg: "bad iface name returned from kernel".to_owned(),
+        })
 }
 
 impl Native {
-    fn create(&self, iface_type: ::VirtualInterfaceType, is_async: bool) -> Result<(File, String)> {
+    fn create(
+        &self,
+        iface_type: ::VirtualInterfaceType,
+        is_async: bool,
+    ) -> Result<(File, String), TunTapError> {
         let mut clone_from_path = PathBuf::from("/dev");
         clone_from_path.push(iface_type.to_string());
 
@@ -157,7 +167,7 @@ impl Native {
 }
 
 impl ::DescriptorCloser for Native {
-    fn close_descriptor(d: &mut ::Descriptor<Native>) -> Result<()> {
+    fn close_descriptor(d: &mut ::Descriptor<Native>) -> Result<(), TunTapError> {
         let name = d.info.lock().unwrap().name.clone();
         //Close underlying file at first
         mem::drop(mem::replace(&mut d.file, File::open("/dev/null")?));

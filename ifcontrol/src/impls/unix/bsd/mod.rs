@@ -1,5 +1,5 @@
 
-use errors::Result;
+use IfError;
 use ifstructs::{ifaliasreq, ifreq};
 use impls::unix::to_sockaddr;
 use std::net::IpAddr;
@@ -23,7 +23,7 @@ pub fn add_addr_to_iface<F: AsRawFd>(
     ip: IpAddr,
     mask: IpAddr,
     broadcast_addr: IpAddr,
-) -> Result<()> {
+) -> Result<(), IfError> {
     let mut req = ifaliasreq::from_name(ifname)?;
 
     req.ifra_addr = to_sockaddr(ip);
@@ -35,7 +35,7 @@ pub fn add_addr_to_iface<F: AsRawFd>(
     Ok(())
 }
 
-pub fn del_addr_from_iface<F: AsRawFd>(ctl_fd: &F, ifname: &str, ip: IpAddr) -> Result<()> {
+pub fn del_addr_from_iface<F: AsRawFd>(ctl_fd: &F, ifname: &str, ip: IpAddr) -> Result<(), IfError> {
     let mut req = ifreq::from_name(ifname)?;
 
     unsafe { req.set_addr(to_sockaddr(ip)) };

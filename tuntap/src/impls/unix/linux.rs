@@ -1,5 +1,4 @@
 use super::linux_common::*;
-use errors::{ErrorKind, Result};
 use ifcontrol::Iface;
 use ifstructs::{ifreq, IfFlags};
 use impls::unix::linux_common::TunTapFlags;
@@ -14,6 +13,7 @@ use std::path::Path;
 use std::str;
 use std::sync::{Arc, Mutex};
 use tokio::reactor::PollEvented2;
+use TunTapError;
 
 pub struct Native {}
 
@@ -26,7 +26,7 @@ impl Native {
         &self,
         name: Option<&str>,
         queues: usize,
-    ) -> Result<::Virtualnterface<::Descriptor<Native>>> {
+    ) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
         let (files, name) = self.create(name, ::VirtualInterfaceType::Tun, false, queues)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -46,7 +46,7 @@ impl Native {
         &self,
         name: Option<&str>,
         queues: usize,
-    ) -> Result<::Virtualnterface<::Descriptor<Native>>> {
+    ) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
         let (files, name) = self.create(name, ::VirtualInterfaceType::Tap, false, queues)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -65,7 +65,8 @@ impl Native {
         &self,
         name: Option<&str>,
         queues: usize,
-    ) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>> {
+    ) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>, TunTapError>
+    {
         let (files, name) = self.create(name, ::VirtualInterfaceType::Tun, true, queues)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -86,7 +87,8 @@ impl Native {
         &self,
         name: Option<&str>,
         queues: usize,
-    ) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>> {
+    ) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>, TunTapError>
+    {
         let (files, name) = self.create(name, ::VirtualInterfaceType::Tap, true, queues)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -110,7 +112,7 @@ impl Native {
         name: &str,
         flags: TunTapFlags,
         is_async: bool,
-    ) -> Result<(File, String)> {
+    ) -> Result<(File, String), TunTapError> {
         let path = Path::new("/dev/net/tun");
 
         let file = OpenOptions::new().read(true).write(true).open(&path)?;
@@ -137,17 +139,19 @@ impl Native {
         iface_type: ::VirtualInterfaceType,
         is_async: bool,
         queues: usize,
-    ) -> Result<(Vec<File>, String)> {
+    ) -> Result<(Vec<File>, String), TunTapError> {
         if let Some(ref s) = name {
             if s.is_empty() {
-                bail!(ErrorKind::BadArguments("name is empty".to_owned()));
+                return Err(TunTapError::BadArguments {
+                    msg: "name is empty".to_owned(),
+                });
             }
         }
 
         if queues == 0 {
-            bail!(ErrorKind::BadArguments(
-                "should be at least 1 queue".to_owned()
-            ));
+            return Err(TunTapError::BadArguments {
+                msg: "should be at least 1 queue".to_owned(),
+            });
         }
 
         let mut flags = TunTapFlags::IFF_NO_PI;
@@ -178,7 +182,7 @@ impl Native {
 }
 
 impl ::DescriptorCloser for Native {
-    fn close_descriptor(_: &mut ::Descriptor<Native>) -> Result<()> {
+    fn close_descriptor(_: &mut ::Descriptor<Native>) -> Result<(), TunTapError> {
         Ok(())
     }
 }

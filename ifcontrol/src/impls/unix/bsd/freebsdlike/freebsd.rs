@@ -1,4 +1,3 @@
-use errors::Result;
 use ifstructs::{
     self, brcmd, ifaliasreq, ifbreq, ifdrv, ifgroupreq, ifreq, rt_msghdr, IfName, RtfFlags,
     RtmAddrFlags,
@@ -28,7 +27,7 @@ ioctl_readwrite!(ioctl_iface_get_groups, b'i', 136, ifgroupreq);
 // #define	SIOCGIFINDEX	_IOWR('i', 32, struct ifreq)	/* get IF index */
 ioctl_write_ptr!(ioctl_get_iface_index, b'i', 32, ifreq);
 
-pub fn get_iface_groups<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<Vec<String>> {
+pub fn get_iface_groups<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<Vec<String>, IfError> {
     let mut req = ifgroupreq::from_name(&ifname)?;
     unsafe { ioctl_iface_get_groups(ctl_fd.as_raw_fd(), &mut req) }?;
     let required_len = req.ifgr_len as usize;
@@ -41,7 +40,7 @@ pub fn get_iface_groups<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<Vec<Stri
     Ok(unsafe { req.ifgr_ifgru.get_group_names(required_len)? })
 }
 
-pub fn create_bridge<F: AsRawFd>(ctl_fd: &F, bridge_ifname: &str) -> Result<()> {
+pub fn create_bridge<F: AsRawFd>(ctl_fd: &F, bridge_ifname: &str) -> Result<(), IfError> {
     let mut req = ifreq::from_name("bridge")?;
     unsafe { ioctl_create_clone_iface(ctl_fd.as_raw_fd(), &mut req)? };
 
@@ -56,7 +55,7 @@ pub fn create_bridge<F: AsRawFd>(ctl_fd: &F, bridge_ifname: &str) -> Result<()> 
     Ok(())
 }
 
-pub fn remove_bridge<F: AsRawFd>(ctl_fd: &F, bridge_ifname: &str) -> Result<()> {
+pub fn remove_bridge<F: AsRawFd>(ctl_fd: &F, bridge_ifname: &str) -> Result<(), IfError> {
     let mut req = ifreq::from_name(bridge_ifname)?;
     unsafe { ioctl_iface_destroy(ctl_fd.as_raw_fd(), &mut req) }?;
     Ok(())
@@ -66,7 +65,7 @@ pub fn add_iface_to_bridge<F: AsRawFd>(
     ctl_fd: &F,
     bridge_ifname: &str,
     iface_ifname: &str,
-) -> Result<()> {
+) -> Result<(), IfError> {
     let mut ifd = ifdrv::from_name(bridge_ifname)?;
     let mut b_req = ifbreq::from_name(iface_ifname)?;
 
@@ -85,7 +84,7 @@ pub fn remove_iface_from_bridge<F: AsRawFd>(
     ctl_fd: &F,
     bridge_ifname: &str,
     iface_ifname: &str,
-) -> Result<()> {
+) -> Result<(), IfError> {
     let mut ifd = ifdrv::from_name(bridge_ifname)?;
     let mut b_req = ifbreq::from_name(iface_ifname)?;
 
@@ -128,7 +127,7 @@ pub fn read_sockaddr_if_flag(
     }
 }
 
-pub fn list_routes<F: AsRawFd>(ctl_fd: &F) -> Result<Vec<RouteRecord>> {
+pub fn list_routes<F: AsRawFd>(ctl_fd: &F) -> Result<Vec<RouteRecord>, IfError> {
     let family = 0;
     let flags = 0;
     let mut lenp: usize = 0;
@@ -222,7 +221,7 @@ pub fn list_routes<F: AsRawFd>(ctl_fd: &F) -> Result<Vec<RouteRecord>> {
     Ok(routing_table)
 }
 
-pub fn get_iface_name<F: AsRawFd>(ctl_fd: &F, idx: libc::c_short) -> Result<String> {
+pub fn get_iface_name<F: AsRawFd>(ctl_fd: &F, idx: libc::c_short) -> Result<String, IfError> {
     let mut ifname: IfName = unsafe { mem::zeroed() };
     let res = unsafe { if_indextoname(idx as libc::c_uint, ifname.as_mut_ptr() as *mut _) };
     if res.is_null() {
@@ -232,7 +231,7 @@ pub fn get_iface_name<F: AsRawFd>(ctl_fd: &F, idx: libc::c_short) -> Result<Stri
     Ok(res?)
 }
 
-pub fn get_iface_index<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<libc::c_short> {
+pub fn get_iface_index<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<libc::c_short, IfError> {
     let mut req = ifreq::from_name(ifname)?;
     unsafe { ::impls::ioctl_get_iface_index(ctl_fd.as_raw_fd(), &mut req)? };
     Ok(unsafe { req.ifr_ifru.ifru_index }.into())

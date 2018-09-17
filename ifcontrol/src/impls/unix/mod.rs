@@ -1,4 +1,3 @@
-use errors::Result;
 use ifstructs::ifreq;
 use ifstructs::IfFlags;
 use libc;
@@ -7,20 +6,21 @@ use nix::sys::socket::{socket, AddressFamily, InetAddr, SockAddr, SockFlag, Sock
 use std::fs::File;
 use std::net::{IpAddr, SocketAddr};
 use std::os::unix::io::{AsRawFd, FromRawFd};
+use IfError;
 
 macro_rules! ti {
     ($e:expr) => {
         match $e {
             Ok(r) => Ok(r),
             Err(nix::Error::Sys(nix::errno::Errno::ENXIO)) => {
-                Err(::errors::ErrorKind::IfaceNotFound.into())
+                Err(::IfError::NotFound)
             }
-            Err(e) => Err(::errors::Error::from(e)),
+            Err(e) => Err(::IfError::from(e)),
         }
     };
 }
 
-pub fn new_control_socket() -> Result<File> {
+pub fn new_control_socket() -> Result<File, IfError> {
     Ok(unsafe {
         File::from_raw_fd(socket(
             AddressFamily::Inet,
@@ -31,13 +31,13 @@ pub fn new_control_socket() -> Result<File> {
     })
 }
 
-pub fn get_iface_ifreq<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<ifreq> {
+pub fn get_iface_ifreq<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<ifreq, IfError> {
     let mut req = ifreq::from_name(ifname)?;
     ti!(unsafe { iface_get_flags(ctl_fd.as_raw_fd(), &mut req) })?;
     Ok(req)
 }
 
-pub fn is_up<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<bool> {
+pub fn is_up<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<bool, IfError> {
     let mut req = ifreq::from_name(ifname)?;
     ti!(unsafe { iface_get_flags(ctl_fd.as_raw_fd(), &mut req) })?;
 
@@ -46,7 +46,7 @@ pub fn is_up<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<bool> {
     Ok(flags.contains(IfFlags::IFF_UP) && flags.contains(IfFlags::IFF_RUNNING))
 }
 
-pub fn set_promiscuous_mode<F: AsRawFd>(ctl_fd: &F, ifname: &str, is_enable: bool) -> Result<()> {
+pub fn set_promiscuous_mode<F: AsRawFd>(ctl_fd: &F, ifname: &str, is_enable: bool) -> Result<(), IfError> {
     let mut req = ifreq::from_name(ifname)?;
     ti!(unsafe { iface_get_flags(ctl_fd.as_raw_fd(), &mut req) })?;
 
@@ -61,7 +61,7 @@ pub fn set_promiscuous_mode<F: AsRawFd>(ctl_fd: &F, ifname: &str, is_enable: boo
     Ok(())
 }
 
-pub fn up<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
+pub fn up<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<(), IfError> {
     if is_up(ctl_fd, ifname)? {
         return Ok(());
     }
@@ -81,7 +81,7 @@ pub fn up<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn down<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
+pub fn down<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<(), IfError> {
     if !is_up(ctl_fd, ifname)? {
         return Ok(());
     }
@@ -101,7 +101,7 @@ pub fn down<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<()> {
 }
 
 #[cfg(not(target_os = "android"))]
-pub fn get_all_addresses() -> Result<nix::ifaddrs::InterfaceAddressIterator> {
+pub fn get_all_addresses() -> Result<nix::ifaddrs::InterfaceAddressIterator, IfError> {
     Ok(nix::ifaddrs::getifaddrs()?)
 }
 

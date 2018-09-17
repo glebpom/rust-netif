@@ -1,5 +1,4 @@
 use super::linux_common::*;
-use errors::{ErrorKind, Result};
 use ifcontrol::Iface;
 use ifstructs::{ifreq, IfFlags};
 use impls::unix::*;
@@ -13,6 +12,7 @@ use std::path::Path;
 use std::str;
 use std::sync::{Arc, Mutex};
 use tokio::reactor::PollEvented2;
+use TunTapError;
 
 pub struct Native {}
 
@@ -24,7 +24,7 @@ impl Native {
     pub fn create_tun(
         &self,
         name: Option<&str>,
-    ) -> Result<::Virtualnterface<::Descriptor<Native>>> {
+    ) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
         let (file, name) = self.create(name, false)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -40,7 +40,8 @@ impl Native {
     pub fn create_tun_async(
         &self,
         name: Option<&str>,
-    ) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>> {
+    ) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>, TunTapError>
+    {
         let (file, name) = self.create(name, true)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -56,10 +57,12 @@ impl Native {
 }
 
 impl Native {
-    fn create(&self, name: Option<&str>, is_async: bool) -> Result<(File, String)> {
+    fn create(&self, name: Option<&str>, is_async: bool) -> Result<(File, String), TunTapError> {
         if let Some(ref s) = name {
             if s.is_empty() {
-                bail!(ErrorKind::BadArguments("name is empty".to_owned()));
+                return TunTapError::BadArguments {
+                    msg: "name is empty".to_owned(),
+                };
             }
         }
 
@@ -94,7 +97,7 @@ impl Native {
 }
 
 impl ::DescriptorCloser for Native {
-    fn close_descriptor(_: &mut ::Descriptor<Native>) -> Result<()> {
+    fn close_descriptor(_: &mut ::Descriptor<Native>) -> Result<(), TunTapError> {
         Ok(())
     }
 }

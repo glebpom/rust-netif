@@ -1,4 +1,3 @@
-use errors::{ErrorKind, Result};
 use ifcontrol::Iface;
 use impls::unix::*;
 use libc;
@@ -16,6 +15,7 @@ use std::path::Path;
 use std::str;
 use std::sync::{Arc, Mutex};
 use tokio::reactor::PollEvented2;
+use TunTapError;
 
 #[derive(Copy, Clone)]
 struct UtunCreatedIfaceName;
@@ -61,7 +61,10 @@ impl Default for Native {
 
 // UTUN native OSX interface support
 impl Native {
-    pub fn create_tun(&self, unit: u32) -> Result<::Virtualnterface<::Descriptor<Native>>> {
+    pub fn create_tun(
+        &self,
+        unit: u32,
+    ) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
         let (fd, name) = self.create_tun_inner(unit, false)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name: name.clone(),
@@ -92,7 +95,8 @@ impl Native {
     pub fn create_tun_async(
         &self,
         unit: u32,
-    ) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>> {
+    ) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>, TunTapError>
+    {
         let (fd, name) = self.create_tun_inner(unit, true)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -106,7 +110,7 @@ impl Native {
         })
     }
 
-    fn create_tun_inner(&self, unit: u32, is_async: bool) -> Result<(RawFd, String)> {
+    fn create_tun_inner(&self, unit: u32, is_async: bool) -> Result<(RawFd, String), TunTapError> {
         let fd: RawFd = socket(
             AddressFamily::System,
             SockType::Datagram,
@@ -130,7 +134,7 @@ impl Native {
 }
 
 impl ::DescriptorCloser for Native {
-    fn close_descriptor(_: &mut ::Descriptor<Native>) -> Result<()> {
+    fn close_descriptor(_: &mut ::Descriptor<Native>) -> Result<(), TunTapError> {
         Ok(())
     }
 }
@@ -193,7 +197,7 @@ macro_rules! create_descriptor {
                     if let Some(r) = TunTapOsx::try_create_by_idx(&dev_name, idx) {
                         r?
                     } else {
-                        return Err(ErrorKind::Busy.into());
+                        return Err(TunTapError::Busy);
                     }
                 } else {
                     TunTapOsx::create_tun_tap_driver(&dev_name, max_num)?
@@ -208,10 +212,11 @@ macro_rules! create_descriptor {
                     info: Arc::downgrade(&info),
                 });
             }
-            None => bail!(ErrorKind::NotSupported(format!(
-                "{} is not configured in backend",
-                stringify!($iface_name)
-            ))),
+            None => {
+                return Err(TunTapError::NotSupported {
+                    msg: format!("{} is not configured in backend", stringify!($iface_name)),
+                })
+            }
         }
     };
 }
@@ -228,25 +233,27 @@ impl TunTapOsx {
     pub fn create_tun(
         &self,
         dev_idx: Option<usize>,
-    ) -> Result<::Virtualnterface<::Descriptor<TunTapOsx>>> {
+    ) -> Result<::Virtualnterface<::Descriptor<TunTapOsx>>, TunTapError> {
         create_descriptor!(self.tun, ::VirtualInterfaceType::Tun, tun, dev_idx)
     }
 
     pub fn create_tap(
         &self,
         dev_idx: Option<usize>,
-    ) -> Result<::Virtualnterface<::Descriptor<TunTapOsx>>> {
+    ) -> Result<::Virtualnterface<::Descriptor<TunTapOsx>>, TunTapError> {
         create_descriptor!(self.tap, ::VirtualInterfaceType::Tap, tap, dev_idx)
     }
 
-    fn try_create_by_idx(dev_name: &str, dev_idx: usize) -> Option<Result<(File, String)>> {
+    fn try_create_by_idx(
+        dev_name: &str,
+        dev_idx: usize,
+    ) -> Option<Result<(File, String), TunTapError>> {
         let path_str = format!("/dev/{}{}", dev_name, dev_idx);
         let path = Path::new(&path_str);
         if !path.exists() {
-            return Some(Err(ErrorKind::NotSupported(format!(
-                "'{}' not exists",
-                path.to_string_lossy()
-            )).into()));
+            return Some(Err(TunTapError::NotSupported {
+                msg: format!("'{}' not exists", path.to_string_lossy()),
+            }));
         }
 
         let f = OpenOptions::new().read(true).write(true).open(path);
@@ -278,18 +285,21 @@ impl TunTapOsx {
         }
     }
 
-    fn create_tun_tap_driver(dev_name: &str, max_num: usize) -> Result<(File, String)> {
+    fn create_tun_tap_driver(
+        dev_name: &str,
+        max_num: usize,
+    ) -> Result<(File, String), TunTapError> {
         for i in 0..max_num {
             if let Some(res) = Self::try_create_by_idx(dev_name, i) {
                 return res;
             }
         }
-        return Err(ErrorKind::MaxNumberReached(max_num).into());
+        return Err(TunTapError::MaxNumberReached { max: max_num });
     }
 }
 
 impl ::DescriptorCloser for TunTapOsx {
-    fn close_descriptor(_: &mut ::Descriptor<TunTapOsx>) -> Result<()> {
+    fn close_descriptor(_: &mut ::Descriptor<TunTapOsx>) -> Result<(), TunTapError> {
         Ok(())
     }
 }

@@ -1,5 +1,4 @@
 use bytes::BufMut;
-use errors::{ErrorKind, Result};
 use ipconfig;
 use std::fs::{File, OpenOptions};
 use std::io;
@@ -18,6 +17,7 @@ use winapi::um::winnt::{
 };
 use winreg::enums::*;
 use winreg::RegKey;
+use TunTapError;
 
 macro_rules! CTL_CODE {
     ($DeviceType:expr, $Function:expr, $Method:expr, $Access:expr) => {
@@ -28,7 +28,7 @@ macro_rules! CTL_CODE {
 pub struct Native {}
 
 impl ::DescriptorCloser for Native {
-    fn close_descriptor(_: &mut ::Descriptor<Native>) -> Result<()> {
+    fn close_descriptor(_: &mut ::Descriptor<Native>) -> Result<(), TunTapError> {
         Ok(())
     }
 }
@@ -44,7 +44,7 @@ impl Native {
         ip: Ipv4Addr,
         netmask: Ipv4Addr,
         gateway: Ipv4Addr,
-    ) -> Result<::Virtualnterface<::Descriptor<Native>>> {
+    ) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
         let (file, name) = Native::open_dev(device_id, Some((ip, netmask, gateway)))?;
 
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
@@ -58,7 +58,10 @@ impl Native {
         })
     }
 
-    pub fn open_tap(&self, device_id: &str) -> Result<::Virtualnterface<::Descriptor<Native>>> {
+    pub fn open_tap(
+        &self,
+        device_id: &str,
+    ) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
         let (file, name) = Native::open_dev(device_id, None)?;
 
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
@@ -74,7 +77,7 @@ impl Native {
 }
 
 impl Native {
-    fn get_device_id(req_component_id: &str) -> Result<Option<String>> {
+    fn get_device_id(req_component_id: &str) -> Result<Option<String>, TunTapError> {
         let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
         let base_path = Path::new("SYSTEM")
             .join("CurrentControlSet")
@@ -97,13 +100,12 @@ impl Native {
     fn open_dev(
         device_id: &str,
         tun_args: Option<(Ipv4Addr, Ipv4Addr, Ipv4Addr)>,
-    ) -> Result<(File, String)> {
+    ) -> Result<(File, String), TunTapError> {
         match Native::get_device_id(device_id)? {
             None => {
-                bail!(ErrorKind::DriverNotFound(format!(
-                    "device_id {} not found",
-                    device_id
-                )));
+                return Err(TunTapError::DriverNotFound {
+                    msg: format!("device_id {} not found", device_id),
+                });
             }
             Some(device_id) => {
                 let path = format!("\\\\.\\Global\\\\{}.tap", device_id);
@@ -184,8 +186,9 @@ impl Native {
                     }
                 }
 
-                let adapters = ipconfig::get_adapters()
-                    .map_err(|_| ErrorKind::Other("failed to get adapters list".to_owned()))?;
+                let adapters = ipconfig::get_adapters().map_err(|_| TunTapError::Other {
+                    msg: "failed to get adapters list".to_owned(),
+                })?;
                 let maybe_adapter_name = adapters
                     .iter()
                     .filter(|adapter| {
@@ -202,9 +205,9 @@ impl Native {
                 if let Some(adapter_name) = maybe_adapter_name {
                     return Ok((file, adapter_name.clone()));
                 } else {
-                    bail!(ErrorKind::Other(
-                        "failed to find created interface".to_owned()
-                    ));
+                    return Err(TunTapError::Other {
+                        msg: "failed to find created interface".to_owned(),
+                    });
                 }
             }
         }

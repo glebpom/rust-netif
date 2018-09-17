@@ -8,7 +8,7 @@ extern crate futures;
 extern crate mio;
 extern crate tokio;
 #[macro_use]
-extern crate error_chain;
+extern crate failure;
 
 #[cfg(unix)]
 extern crate ifstructs;
@@ -28,12 +28,9 @@ extern crate winapi;
 #[cfg(windows)]
 extern crate winreg;
 
-mod errors;
 mod impls;
 
 pub use impls::*;
-
-use errors::Result;
 
 use futures::sync::mpsc;
 use futures::{Future, Sink, Stream};
@@ -43,6 +40,55 @@ use std::io::{Read, Write};
 use std::string::ToString;
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
+
+#[derive(Debug, Fail)]
+#[fail(display = "tuntap error")]
+pub enum TunTapError {
+    #[cfg(unix)]
+    #[fail(display = "nix error")]
+    Nix(::nix::Error),
+    #[fail(display = "io error")]
+    Io(::std::io::Error),
+    #[fail(display = "ifcontrol error")]
+    IfControl(ifcontrol::IfError),
+    #[fail(display = "not found: {}", msg)]
+    NotFound { msg: String },
+    #[fail(display = "max number {} of virtual interfaces reached", max)]
+    MaxNumberReached { max: usize },
+    #[fail(display = "name too long {}, max {}", s, max)]
+    NameTooLong { s: usize, max: usize },
+    #[fail(display = "bad arguments: {}", msg)]
+    BadArguments { msg: String },
+    #[fail(display = "backend is not supported: {}", msg)]
+    NotSupported { msg: String },
+    #[fail(display = "driver not found: {}", msg)]
+    DriverNotFound { msg: String },
+    #[fail(display = "bad data received: {}", msg)]
+    BadData { msg: String },
+    #[fail(display = "device busy")]
+    Busy,
+    #[fail(display = "error: {}", msg)]
+    Other { msg: String },
+}
+
+#[cfg(unix)]
+impl From<::nix::Error> for TunTapError {
+    fn from(e: ::nix::Error) -> TunTapError {
+        TunTapError::Nix(e)
+    }
+}
+
+impl From<::std::io::Error> for TunTapError {
+    fn from(e: ::std::io::Error) -> TunTapError {
+        TunTapError::Io(e)
+    }
+}
+
+impl From<ifcontrol::IfError> for TunTapError {
+    fn from(e: ifcontrol::IfError) -> TunTapError {
+        TunTapError::IfControl(e)
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 pub enum VirtualInterfaceType {
@@ -63,7 +109,7 @@ pub trait DescriptorCloser
 where
     Self: std::marker::Sized + Send + 'static,
 {
-    fn close_descriptor(d: &mut Descriptor<Self>) -> Result<()>;
+    fn close_descriptor(d: &mut Descriptor<Self>) -> Result<(), TunTapError>;
 }
 
 #[derive(Clone, Debug)]
@@ -91,7 +137,7 @@ where
         }
     }
 
-    fn try_clone(&self) -> Result<Self> {
+    fn try_clone(&self) -> Result<Self, TunTapError> {
         Ok(Descriptor {
             file: self.file.try_clone()?,
             _closer: Default::default(),
@@ -147,7 +193,7 @@ where
     pub fn pop_channels_spawn_threads(
         &mut self,
         buffer: usize,
-    ) -> Option<Result<(mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>)>> {
+    ) -> Option<Result<(mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>), TunTapError>> {
         let mut write_file = self.pop_file()?;
         let mut read_file = match write_file.try_clone() {
             Ok(f) => f,
