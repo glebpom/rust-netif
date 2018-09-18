@@ -40,6 +40,7 @@ use std::io::{Read, Write};
 use std::string::ToString;
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
+use bytes::{Bytes, BytesMut};
 
 #[derive(Debug, Fail)]
 #[fail(display = "tuntap error")]
@@ -193,21 +194,21 @@ where
     pub fn pop_channels_spawn_threads(
         &mut self,
         buffer: usize,
-    ) -> Option<Result<(mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>), TunTapError>> {
+    ) -> Option<Result<(mpsc::Sender<Bytes>, mpsc::Receiver<Bytes>), TunTapError>> {
         let mut write_file = self.pop_file()?;
         let mut read_file = match write_file.try_clone() {
             Ok(f) => f,
             Err(e) => return Some(Err(e.into())),
         };
 
-        let (outgoing_tx, outgoing_rx) = mpsc::channel::<Vec<u8>>(buffer);
-        let (incoming_tx, incoming_rx) = mpsc::channel::<Vec<u8>>(buffer);
+        let (outgoing_tx, outgoing_rx) = mpsc::channel::<Bytes>(buffer);
+        let (incoming_tx, incoming_rx) = mpsc::channel::<Bytes>(buffer);
 
         let _handle_outgoing = thread::spawn(move || loop {
-            let mut v = vec![0u8; 2000];
+            let mut v = BytesMut::with_capacity(2000);
             let len = read_file.read(&mut v).unwrap();
-            v.resize(len, 0);
-            if let Err(_e) = outgoing_tx.clone().send(v).wait() {
+            v.truncate(len);
+            if let Err(_e) = outgoing_tx.clone().send(v.freeze()).wait() {
                 //stop thread because other side is gone
                 break;
             }

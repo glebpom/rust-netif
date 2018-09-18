@@ -144,6 +144,7 @@ where
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+        //FIXME: avoid allocation on each poll
         let mut buf = BytesMut::with_capacity(2000);
         self.inner.read_buf(&mut buf).and_then(|res| {
             if let Async::Ready(n) = res {
