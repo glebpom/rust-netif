@@ -197,8 +197,8 @@ where
     pub fn pop_split_channels(
         &mut self,
     ) -> Option<(
-        impl Sink<SinkItem = Bytes, SinkError = io::Error>,
-        impl Stream<Item = Bytes, Error = io::Error>,
+        impl Sink<SinkItem = Bytes, SinkError = io::Error> + 'static,
+        impl Stream<Item = Bytes, Error = io::Error> + 'static,
     )> {
         let mut write_file = self.pop_file()?;
         let mut read_file = write_file.try_clone().unwrap();

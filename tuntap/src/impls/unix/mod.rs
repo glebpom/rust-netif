@@ -217,8 +217,8 @@ where
     pub fn pop_split_channels(
         &mut self,
     ) -> Option<(
-        impl Sink<SinkItem = Bytes, SinkError = io::Error>,
-        impl Stream<Item = Bytes, Error = io::Error>,
+        impl Sink<SinkItem = Bytes, SinkError = io::Error> + 'static,
+        impl Stream<Item = Bytes, Error = io::Error> + 'static,
     )> {
         self.queues.pop().map(|q| AsyncDescriptor::from(q).split())
     }
