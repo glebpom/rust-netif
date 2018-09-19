@@ -197,8 +197,8 @@ where
     pub fn pop_split_channels(
         &mut self,
     ) -> Option<(
-        impl Sink<SinkItem = Bytes, SinkError = io::Error> + 'static,
-        impl Stream<Item = Bytes, Error = io::Error> + 'static,
+        impl Sink<SinkItem = Bytes, SinkError = io::Error>,
+        impl Stream<Item = Bytes, Error = io::Error>,
     )> {
         let mut write_file = self.pop_file()?;
         let mut read_file = write_file.try_clone().unwrap();
@@ -235,8 +235,8 @@ where
         });
 
         Some((
-            incoming_tx.sink_map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error")),
-            outgoing_rx.map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error")),
+            Box::new(incoming_tx.sink_map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error"))),
+            Box::new(outgoing_rx.map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error"))),
         ))
     }
 }

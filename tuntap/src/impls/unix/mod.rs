@@ -121,7 +121,6 @@ where
     outgoing: BytesMut,
 }
 
-
 impl<C> From<PollEvented2<EventedDescriptor<C>>> for AsyncDescriptor<C>
 where
     C: ::DescriptorCloser,
@@ -217,9 +216,13 @@ where
     pub fn pop_split_channels(
         &mut self,
     ) -> Option<(
-        impl Sink<SinkItem = Bytes, SinkError = io::Error> + 'static,
-        impl Stream<Item = Bytes, Error = io::Error> + 'static,
+        impl Sink<SinkItem = Bytes, SinkError = io::Error>,
+        impl Stream<Item = Bytes, Error = io::Error>,
     )> {
-        self.queues.pop().map(|q| AsyncDescriptor::from(q).split())
+        if let Some(q) = self.queues.pop(){
+            Some(AsyncDescriptor::from(q).split())
+        } else {
+            None
+        }
     }
 }
