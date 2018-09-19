@@ -32,6 +32,7 @@ mod impls;
 
 pub use impls::*;
 
+use bytes::{Bytes, BytesMut};
 use futures::sync::mpsc;
 use futures::{Future, Sink, Stream};
 use std::fs::File;
@@ -40,7 +41,9 @@ use std::io::{Read, Write};
 use std::string::ToString;
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
-use bytes::{Bytes, BytesMut};
+
+const MTU: usize = 2000;
+const RESERVE_AT_ONCE: usize = 65536; //reserve large buffer once
 
 #[derive(Debug, Fail)]
 #[fail(display = "tuntap error")]
@@ -191,26 +194,32 @@ where
         self.queues.pop()
     }
 
-    pub fn pop_channels_spawn_threads(
+    pub fn pop_split_channels(
         &mut self,
-        buffer: usize,
-    ) -> Option<Result<(mpsc::Sender<Bytes>, mpsc::Receiver<Bytes>), TunTapError>> {
+    ) -> Option<(
+        impl Sink<SinkItem = Bytes, SinkError = io::Error>,
+        impl Stream<Item = Bytes, Error = io::Error>,
+    )> {
         let mut write_file = self.pop_file()?;
-        let mut read_file = match write_file.try_clone() {
-            Ok(f) => f,
-            Err(e) => return Some(Err(e.into())),
-        };
+        let mut read_file = write_file.try_clone().unwrap();
 
-        let (outgoing_tx, outgoing_rx) = mpsc::channel::<Bytes>(buffer);
-        let (incoming_tx, incoming_rx) = mpsc::channel::<Bytes>(buffer);
+        //hardcoded buffer size. move to builder somehow?
+        let (outgoing_tx, outgoing_rx) = mpsc::channel::<Bytes>(4);
+        let (incoming_tx, incoming_rx) = mpsc::channel::<Bytes>(4);
 
-        let _handle_outgoing = thread::spawn(move || loop {
-            let mut v = BytesMut::with_capacity(2000);
-            let len = read_file.read(&mut v).unwrap();
-            v.truncate(len);
-            if let Err(_e) = outgoing_tx.clone().send(v.freeze()).wait() {
-                //stop thread because other side is gone
-                break;
+        let _handle_outgoing = thread::spawn(move || {
+            let mut buf = BytesMut::with_capacity(::RESERVE_AT_ONCE);
+            loop {
+                let len = read_file.read(&mut buf).unwrap();
+                let packet = buf.split_to(len);
+                let cur_capacity = buf.capacity();
+                if cur_capacity < ::MTU {
+                    buf.reserve(::RESERVE_AT_ONCE);
+                }
+                if let Err(_e) = outgoing_tx.clone().send(packet.freeze()).wait() {
+                    //stop thread because other side is gone
+                    break;
+                }
             }
         });
 
@@ -225,7 +234,10 @@ where
             }
         });
 
-        Some(Ok((incoming_tx, outgoing_rx)))
+        Some((
+            incoming_tx.sink_map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error")),
+            outgoing_rx.map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error")),
+        ))
     }
 }
 

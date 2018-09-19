@@ -101,11 +101,7 @@ where
     }
 }
 
-impl<C> AsyncRead for EventedDescriptor<C>
-where
-    C: ::DescriptorCloser,
-{
-}
+impl<C> AsyncRead for EventedDescriptor<C> where C: ::DescriptorCloser {}
 
 impl<C> AsyncWrite for EventedDescriptor<C>
 where
@@ -122,7 +118,9 @@ where
 {
     inner: PollEvented2<EventedDescriptor<C>>,
     incoming: Option<io::Cursor<Bytes>>,
+    outgoing: BytesMut,
 }
+
 
 impl<C> From<PollEvented2<EventedDescriptor<C>>> for AsyncDescriptor<C>
 where
@@ -132,6 +130,7 @@ where
         AsyncDescriptor {
             inner: f,
             incoming: None,
+            outgoing: BytesMut::with_capacity(::RESERVE_AT_ONCE),
         }
     }
 }
@@ -144,12 +143,15 @@ where
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        //FIXME: avoid allocation on each poll
-        let mut buf = BytesMut::with_capacity(2000);
-        self.inner.read_buf(&mut buf).and_then(|res| {
+        self.inner.read_buf(&mut self.outgoing).and_then(|res| {
             if let Async::Ready(n) = res {
                 if n > 0 {
-                    return Ok(Async::Ready(Some(buf.freeze())));
+                    let packet = self.outgoing.split_to(n);
+                    let cur_capacity = self.outgoing.capacity();
+                    if cur_capacity < ::MTU {
+                        self.outgoing.reserve(::RESERVE_AT_ONCE);
+                    }
+                    return Ok(Async::Ready(Some(packet.freeze())));
                 }
             }
             Ok(Async::NotReady)
@@ -212,7 +214,12 @@ impl<C> ::Virtualnterface<PollEvented2<EventedDescriptor<C>>>
 where
     C: ::DescriptorCloser,
 {
-    pub fn pop_stream(&mut self) -> Option<AsyncDescriptor<C>> {
-        self.queues.pop().map(|q| q.into())
+    pub fn pop_split_channels(
+        &mut self,
+    ) -> Option<(
+        impl Sink<SinkItem = Bytes, SinkError = io::Error>,
+        impl Stream<Item = Bytes, Error = io::Error>,
+    )> {
+        self.queues.pop().map(|q| AsyncDescriptor::from(q).split())
     }
 }
