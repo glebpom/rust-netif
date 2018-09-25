@@ -118,8 +118,8 @@ where
 
 #[derive(Clone, Debug)]
 pub struct VirtualInterfaceInfo {
-    name: String,
-    iface_type: VirtualInterfaceType,
+    pub name: String,
+    pub iface_type: VirtualInterfaceType,
 }
 
 pub struct Descriptor<C: DescriptorCloser> {
