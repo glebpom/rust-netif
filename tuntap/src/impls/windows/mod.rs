@@ -136,7 +136,7 @@ impl Native {
                     )
                 } == 0
                 {
-                    return Err(io::Error::last_os_error());
+                    return Err(io::Error::last_os_error().into());
                 }
 
                 let mac = mac[..(bytes_returned as usize)].to_vec();
@@ -157,7 +157,7 @@ impl Native {
                     )
                 } == 0
                 {
-                    return Err(io::Error::last_os_error());
+                    return Err(io::Error::last_os_error().into());
                 }
 
                 if let Some((ip, netmask, gateway)) = tun_args {
@@ -182,7 +182,7 @@ impl Native {
                         )
                     } == 0
                     {
-                        return Err(io::Error::last_os_error());
+                        return Err(io::Error::last_os_error().into());
                     }
                 }
 
