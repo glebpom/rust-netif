@@ -2,6 +2,7 @@ use ifstructs::{
     self, brcmd, ifaliasreq, ifbreq, ifdrv, ifgroupreq, ifreq, rt_msghdr, IfName, RtfFlags,
     RtmAddrFlags,
 };
+use IfError;
 use libc;
 use nix;
 use nix::sys::socket::SockAddr;

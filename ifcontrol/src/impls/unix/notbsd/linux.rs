@@ -1,9 +1,9 @@
-use IfError, Result;
-use ifstructs::{ifreq, rtentry, ethtool_drvinfo, ETHTOOL_GDRVINFO};
+use ifstructs::{ethtool_drvinfo, ifreq, rtentry, ETHTOOL_GDRVINFO};
 use libc;
 use std::ffi::CString;
 use std::mem;
 use std::os::unix::io::AsRawFd;
+use IfError;
 
 // #define SIOCGIFNAME	0x8910		/* get iface name		*/
 ioctl_readwrite_bad!(ioctl_get_iface_name, 0x890B, ifreq);
@@ -97,7 +97,7 @@ pub fn get_iface_index<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<libc::c_i
 #[derive(Debug, Clone)]
 pub struct DriverInfo {
     pub driver: String,
-    pub bus_info: String, 
+    pub bus_info: String,
 }
 
 pub fn get_ethernet_driver<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<DriverInfo, IfError> {
@@ -108,7 +108,7 @@ pub fn get_ethernet_driver<F: AsRawFd>(ctl_fd: &F, ifname: &str) -> Result<Drive
     unsafe { ::impls::ioctl_ethtool(ctl_fd.as_raw_fd(), &mut req)? };
     Ok(DriverInfo {
         driver: get_name!(ereq.driver)?,
-        bus_info: get_name!(ereq.bus_info)?
+        bus_info: get_name!(ereq.bus_info)?,
     })
 }
 
