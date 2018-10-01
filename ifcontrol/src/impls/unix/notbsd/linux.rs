@@ -76,7 +76,7 @@ pub fn bind_to_device<S: AsRawFd>(socket: &S, iface_name: &str) -> Result<(), If
         )
     };
     if res != 0 {
-        return Err(::nix::Error::last());
+        return Err(::nix::Error::last().into());
     }
     Ok(())
 }
