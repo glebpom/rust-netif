@@ -22,8 +22,6 @@ failure = "0.1.2"
 eui48 = "0.3.2"
 ipnetwork = { git = "https://github.com/glebpom/ipnetwork.git", rev = "master" }
 
-[target.'cfg(target_os="linux")'.dependencies]
-rtnetlink = "0.0.3"
 
 [target.'cfg(unix)'.dependencies]
 ifstructs = {path = "../ifstructs"}
