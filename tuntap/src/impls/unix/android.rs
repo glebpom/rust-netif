@@ -60,9 +60,9 @@ impl Native {
     fn create(&self, name: Option<&str>, is_async: bool) -> Result<(File, String), TunTapError> {
         if let Some(ref s) = name {
             if s.is_empty() {
-                return TunTapError::BadArguments {
+                return Err(TunTapError::BadArguments {
                     msg: "name is empty".to_owned(),
-                };
+                });
             }
         }
 
