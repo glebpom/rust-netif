@@ -143,7 +143,7 @@ impl Iface {
 
     #[cfg(target_os = "android")]
     pub fn find_by_name(ifname: &str) -> Result<Iface, IfError> {
-        Err(IfError::IfaceNotFound)
+        Err(IfError::NotFound)
     }
 
     pub fn hw_addr(&self) -> Option<MacAddress> {
