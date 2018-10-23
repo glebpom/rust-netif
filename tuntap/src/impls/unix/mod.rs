@@ -219,7 +219,7 @@ where
         impl Sink<SinkItem = Bytes, SinkError = io::Error>,
         impl Stream<Item = Bytes, Error = io::Error>,
     )> {
-        if let Some(q) = self.queues.pop(){
+        if let Some(q) = self.queues.pop() {
             Some(AsyncDescriptor::from(q).split())
         } else {
             None

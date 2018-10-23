@@ -77,8 +77,7 @@ impl Native {
                 .into_iter()
                 .map(|f| {
                     PollEvented2::new(super::EventedDescriptor(::Descriptor::from_file(f, &info)))
-                })
-                .collect(),
+                }).collect(),
             info: Arc::downgrade(&info),
         })
     }
@@ -99,8 +98,7 @@ impl Native {
                 .into_iter()
                 .map(|f| {
                     PollEvented2::new(super::EventedDescriptor(::Descriptor::from_file(f, &info)))
-                })
-                .collect(),
+                }).collect(),
             info: Arc::downgrade(&info),
         })
     }
@@ -115,13 +113,18 @@ impl Native {
     ) -> Result<(File, String), TunTapError> {
         let path = Path::new("/dev/net/tun");
 
-        let file = OpenOptions::new().read(true).write(true).open(&path)?;
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&path)
+            .context("could not open /dev/net/tun")?;
 
-        let mut req = ifreq::from_name(name)?;
+        let mut req = ifreq::from_name(name).context("could not retrieve interface by name")?;
 
         unsafe { req.set_raw_flags(flags.bits()) };
 
-        unsafe { tun_set_iff(file.as_raw_fd(), &mut req as *mut _ as *mut _) }?;
+        unsafe { tun_set_iff(file.as_raw_fd(), &mut req as *mut _ as *mut _) }
+            .context("could not retrieve interface by name")?;
 
         if is_async {
             fcntl::fcntl(
@@ -130,7 +133,7 @@ impl Native {
             )?;
         }
 
-        Ok((file, req.get_name()?))
+        Ok((file, req.get_name().context("could not get_name")?))
     }
 
     fn create(
@@ -165,17 +168,26 @@ impl Native {
 
         let mut files = vec![];
 
-        let (file, resulting_name) = self.create_queue(name.unwrap_or(""), flags, is_async)?;
+        let (file, resulting_name) = self
+            .create_queue(name.unwrap_or(""), flags, is_async)
+            .context("Failed to create queue")?;
 
         files.push(file);
 
         if queues > 1 {
             for _ in 0..queues - 1 {
-                files.push(self.create_queue(&resulting_name, flags, is_async)?.0);
+                files.push(
+                    self.create_queue(&resulting_name, flags, is_async)
+                        .context("Failed to create queue")?
+                        .0,
+                );
             }
         }
 
-        Iface::find_by_name(&resulting_name)?.up()?;
+        Iface::find_by_name(&resulting_name)
+            .context("Failed to find iface by name")?
+            .up()
+            .context("Failed to up iface")?;
 
         Ok((files, resulting_name))
     }

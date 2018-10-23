@@ -198,8 +198,7 @@ impl Native {
                             }
                         }
                         false
-                    })
-                    .next()
+                    }).next()
                     .map(|a| a.friendly_name());
 
                 if let Some(adapter_name) = maybe_adapter_name {
