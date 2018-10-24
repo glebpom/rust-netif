@@ -235,9 +235,7 @@ where
         });
 
         Some((
-            Box::new(
-                incoming_tx.sink_map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error")),
-            ),
+            Box::new(incoming_tx.sink_map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error"))),
             Box::new(outgoing_rx.map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error"))),
         ))
     }
