@@ -12,6 +12,7 @@ bitflags! {
         /// this flag has no real effect
         const IFF_ONE_QUEUE = 0x2000;
         const IFF_VNET_HDR = 0x4000;
+        #[allow(overflowing_literals)]
         const IFF_TUN_EXCL = 0x8000;
         const IFF_MULTI_QUEUE = 0x0100;
         const IFF_ATTACH_QUEUE = 0x0200;
