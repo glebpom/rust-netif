@@ -208,13 +208,13 @@ where
         let (incoming_tx, incoming_rx) = mpsc::channel::<Bytes>(4);
 
         let _handle_outgoing = thread::spawn(move || {
-            let mut buf = BytesMut::with_capacity(::RESERVE_AT_ONCE);
+            let mut buf = BytesMut::from(vec![0u8; ::RESERVE_AT_ONCE]);
             loop {
-                let len = read_file.read(&mut buf).unwrap();
+                let len = read_file.read(&mut buf).expect("Couldn't read from virtual interface");
                 let packet = buf.split_to(len);
-                let cur_capacity = buf.capacity();
+                let cur_capacity = buf.len();
                 if cur_capacity < ::MTU {
-                    buf.reserve(::RESERVE_AT_ONCE);
+                    buf.resize(::RESERVE_AT_ONCE, 0);
                 }
                 if let Err(_e) = outgoing_tx.clone().send(packet.freeze()).wait() {
                     //stop thread because other side is gone

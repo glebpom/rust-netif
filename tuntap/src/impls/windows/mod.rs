@@ -42,10 +42,10 @@ impl Native {
         &self,
         device_id: &str,
         ip: Ipv4Addr,
+        network: Ipv4Addr,
         netmask: Ipv4Addr,
-        gateway: Ipv4Addr,
     ) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
-        let (file, name) = Native::open_dev(device_id, Some((ip, netmask, gateway)))?;
+        let (file, name) = Native::open_dev(device_id, Some((ip, network, netmask)))?;
 
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -77,7 +77,7 @@ impl Native {
 }
 
 impl Native {
-    fn get_device_id(req_component_id: &str) -> Result<Option<String>, TunTapError> {
+    fn get_instance_id(req_component_id: &str) -> Result<Option<String>, TunTapError> {
         let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
         let base_path = Path::new("SYSTEM")
             .join("CurrentControlSet")
@@ -101,14 +101,14 @@ impl Native {
         device_id: &str,
         tun_args: Option<(Ipv4Addr, Ipv4Addr, Ipv4Addr)>,
     ) -> Result<(File, String), TunTapError> {
-        match Native::get_device_id(device_id)? {
+        match Native::get_instance_id(device_id)? {
             None => {
                 return Err(TunTapError::DriverNotFound {
                     msg: format!("device_id {} not found", device_id),
                 });
             }
-            Some(device_id) => {
-                let path = format!("\\\\.\\Global\\\\{}.tap", device_id);
+            Some(instance_id) => {
+                let path = format!("\\\\.\\Global\\{}.tap", instance_id);
                 let mut file = OpenOptions::new()
                     .read(true)
                     .write(true)
@@ -160,20 +160,19 @@ impl Native {
                     return Err(io::Error::last_os_error().into());
                 }
 
-                if let Some((ip, netmask, gateway)) = tun_args {
+                if let Some((ip, network, netmask)) = tun_args {
                     //Set TUN
+                    let mut code2 = [0u8; 12];  // = [192, 168, 66, 12, 192, 168, 66, 0, 255, 255, 255, 0];
                     let mut rbuf = [0u8; MAXIMUM_REPARSE_DATA_BUFFER_SIZE as usize];
-                    let mut code = [0u8; 12]; // = [192, 168, 66, 12, 192, 168, 66, 0, 255, 255, 255, 0]; //UP
-                    let mut c = Cursor::new(code);
-                    c.put_u32_be(ip.into());
-                    c.put_u32_be(netmask.into());
-                    c.put_u32_be(gateway.into());
+                    code2[0..4].copy_from_slice(&ip.octets()[..]);
+                    code2[4..8].copy_from_slice(&network.octets()[..]);
+                    code2[8..12].copy_from_slice(&netmask.octets()[..]);
 
                     if unsafe {
                         DeviceIoControl(
                             file.as_raw_handle() as *mut _ as *mut c_void,
-                            CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x0A, 0, 0),
-                            &mut code as *mut _ as *mut c_void,
+                            CTL_CODE!(FILE_DEVICE_UNKNOWN, 10, 0, 0),
+                            &mut code2 as *mut _ as *mut c_void,
                             12,
                             &mut rbuf as *mut _ as *mut c_void,
                             MAXIMUM_REPARSE_DATA_BUFFER_SIZE,
@@ -199,11 +198,10 @@ impl Native {
                         }
                         false
                     })
-                    .next()
-                    .map(|a| a.friendly_name());
+                    .next();
 
-                if let Some(adapter_name) = maybe_adapter_name {
-                    return Ok((file, adapter_name.clone()));
+                if let Some(adapter_info) = maybe_adapter_name {
+                    return Ok((file, adapter_info.friendly_name().clone()));
                 } else {
                     return Err(TunTapError::Other {
                         msg: "failed to find created interface".to_owned(),
