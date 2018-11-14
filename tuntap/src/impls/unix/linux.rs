@@ -45,7 +45,6 @@ mod normal_linux {
     use super::*;
     use ifcontrol::Iface;
     use ifstructs::{ifreq, IfFlags};
-    use impls::unix::{linux_common::TunTapFlags, *};
     use libc::{self, c_short, c_uchar, IFF_MULTI_QUEUE, IFF_NO_PI, IFF_TAP, IFF_TUN, IFNAMSIZ};
     use nix::fcntl;
     use std::fs::OpenOptions;
