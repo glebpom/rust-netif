@@ -1,6 +1,6 @@
 #![recursion_limit = "128"]
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 #[macro_use]
 extern crate bitflags;
 extern crate bytes;
@@ -194,12 +194,7 @@ where
         self.queues.pop()
     }
 
-    pub fn pop_split_channels(
-        &mut self,
-    ) -> Option<(
-        impl Sink<SinkItem = Bytes, SinkError = io::Error>,
-        impl Stream<Item = Bytes, Error = io::Error>,
-    )> {
+    pub fn pop_split_channels(&mut self) -> Option<(impl Sink<SinkItem = Bytes, SinkError = io::Error>, impl Stream<Item = Bytes, Error = io::Error>)> {
         let mut write_file = self.pop_file()?;
         let mut read_file = write_file.try_clone().unwrap();
 

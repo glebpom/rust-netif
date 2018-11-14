@@ -1,20 +1,13 @@
-#[cfg(any(target_os = "linux", target_os = "android"))]
-mod linux_common;
-
-#[cfg(target_os = "android")]
-mod android;
 #[cfg(target_os = "freebsd")]
 mod freebsd;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 mod linux;
 #[cfg(target_os = "macos")]
 mod macos;
 
-#[cfg(target_os = "android")]
-pub use self::android::*;
 #[cfg(target_os = "freebsd")]
 pub use self::freebsd::*;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub use self::linux::*;
 #[cfg(target_os = "macos")]
 pub use self::macos::*;
@@ -43,23 +36,11 @@ impl<C> Evented for super::EventedDescriptor<C>
 where
     C: ::DescriptorCloser,
 {
-    fn register(
-        &self,
-        poll: &mio::Poll,
-        token: mio::Token,
-        interest: mio::Ready,
-        opts: mio::PollOpt,
-    ) -> io::Result<()> {
+    fn register(&self, poll: &mio::Poll, token: mio::Token, interest: mio::Ready, opts: mio::PollOpt) -> io::Result<()> {
         EventedFd(&self.0.as_raw_fd()).register(poll, token, interest, opts)
     }
 
-    fn reregister(
-        &self,
-        poll: &mio::Poll,
-        token: mio::Token,
-        interest: mio::Ready,
-        opts: mio::PollOpt,
-    ) -> io::Result<()> {
+    fn reregister(&self, poll: &mio::Poll, token: mio::Token, interest: mio::Ready, opts: mio::PollOpt) -> io::Result<()> {
         EventedFd(&self.0.as_raw_fd()).reregister(poll, token, interest, opts)
     }
 
@@ -186,10 +167,7 @@ where
                     } else if n == buf.get_ref().len() {
                         Ok(Async::Ready(()))
                     } else {
-                        Err(io::Error::new(
-                            io::ErrorKind::Other,
-                            "Failed to send whole datagram",
-                        ))
+                        Err(io::Error::new(io::ErrorKind::Other, "Failed to send whole datagram"))
                     }
                 } else {
                     Ok(Async::NotReady)
@@ -213,13 +191,8 @@ impl<C> ::Virtualnterface<PollEvented2<EventedDescriptor<C>>>
 where
     C: ::DescriptorCloser,
 {
-    pub fn pop_split_channels(
-        &mut self,
-    ) -> Option<(
-        impl Sink<SinkItem = Bytes, SinkError = io::Error>,
-        impl Stream<Item = Bytes, Error = io::Error>,
-    )> {
-        if let Some(q) = self.queues.pop(){
+    pub fn pop_split_channels(&mut self) -> Option<(impl Sink<SinkItem = Bytes, SinkError = io::Error>, impl Stream<Item = Bytes, Error = io::Error>)> {
+        if let Some(q) = self.queues.pop() {
             Some(AsyncDescriptor::from(q).split())
         } else {
             None
