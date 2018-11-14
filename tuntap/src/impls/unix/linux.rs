@@ -1,3 +1,4 @@
+use super::EventedDescriptor;
 use std::fs::File;
 use std::os::unix::prelude::*;
 use std::sync::{Arc, Mutex};
@@ -11,13 +12,13 @@ impl Native {
         Native {}
     }
 
-    pub unsafe fn tun_async_from_fd(&self, ifname: &str, fd: RawFd) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>, TunTapError> {
+    pub unsafe fn tun_async_from_fd(&self, ifname: &str, fd: RawFd) -> Result<::Virtualnterface<PollEvented2<EventedDescriptor<Native>>>, TunTapError> {
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name: ifname.to_owned(),
             iface_type: ::VirtualInterfaceType::Tun,
         }));
         Ok(::Virtualnterface {
-            queues: vec![PollEvented2::new(super::EventedDescriptor(::Descriptor::from_file(File::from_raw_fd(fd), &info)))],
+            queues: vec![PollEvented2::new(EventedDescriptor(::Descriptor::from_file(File::from_raw_fd(fd), &info)))],
             info: Arc::downgrade(&info),
         })
     }
@@ -45,7 +46,7 @@ mod normal_linux {
     use super::*;
     use ifcontrol::Iface;
     use ifstructs::{ifreq, IfFlags};
-    use libc::{self, c_short, c_uchar, IFF_MULTI_QUEUE, IFF_NO_PI, IFF_TAP, IFF_TUN, IFNAMSIZ};
+    use libc;
     use nix::fcntl;
     use std::fs::OpenOptions;
     use std::mem;
@@ -102,26 +103,26 @@ mod normal_linux {
             })
         }
 
-        pub fn create_tun_async(&self, name: Option<&str>, queues: usize) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>, TunTapError> {
+        pub fn create_tun_async(&self, name: Option<&str>, queues: usize) -> Result<::Virtualnterface<PollEvented2<EventedDescriptor<Native>>>, TunTapError> {
             let (files, name) = self.create(name, ::VirtualInterfaceType::Tun, true, queues)?;
             let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
                 name,
                 iface_type: ::VirtualInterfaceType::Tun,
             }));
             Ok(::Virtualnterface {
-                queues: files.into_iter().map(|f| PollEvented2::new(super::EventedDescriptor(::Descriptor::from_file(f, &info)))).collect(),
+                queues: files.into_iter().map(|f| PollEvented2::new(EventedDescriptor(::Descriptor::from_file(f, &info)))).collect(),
                 info: Arc::downgrade(&info),
             })
         }
 
-        pub fn create_tap_async(&self, name: Option<&str>, queues: usize) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>, TunTapError> {
+        pub fn create_tap_async(&self, name: Option<&str>, queues: usize) -> Result<::Virtualnterface<PollEvented2<EventedDescriptor<Native>>>, TunTapError> {
             let (files, name) = self.create(name, ::VirtualInterfaceType::Tap, true, queues)?;
             let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
                 name,
                 iface_type: ::VirtualInterfaceType::Tap,
             }));
             Ok(::Virtualnterface {
-                queues: files.into_iter().map(|f| PollEvented2::new(super::EventedDescriptor(::Descriptor::from_file(f, &info)))).collect(),
+                queues: files.into_iter().map(|f| PollEvented2::new(EventedDescriptor(::Descriptor::from_file(f, &info)))).collect(),
                 info: Arc::downgrade(&info),
             })
         }
