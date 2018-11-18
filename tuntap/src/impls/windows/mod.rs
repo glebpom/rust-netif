@@ -12,9 +12,7 @@ use std::sync::{Arc, Mutex};
 use winapi::ctypes::c_void;
 use winapi::um::ioapiset::DeviceIoControl;
 use winapi::um::winioctl::FILE_DEVICE_UNKNOWN;
-use winapi::um::winnt::{
-    FILE_ATTRIBUTE_SYSTEM, FILE_SHARE_READ, FILE_SHARE_WRITE, MAXIMUM_REPARSE_DATA_BUFFER_SIZE,
-};
+use winapi::um::winnt::{FILE_ATTRIBUTE_SYSTEM, FILE_SHARE_READ, FILE_SHARE_WRITE, MAXIMUM_REPARSE_DATA_BUFFER_SIZE};
 use winreg::enums::*;
 use winreg::RegKey;
 use TunTapError;
@@ -25,27 +23,21 @@ macro_rules! CTL_CODE {
     };
 }
 
-pub struct Native {}
+pub struct OpenvpnTapDriver {}
 
-impl ::DescriptorCloser for Native {
-    fn close_descriptor(_: &mut ::Descriptor<Native>) -> Result<(), TunTapError> {
+impl ::DescriptorCloser for OpenvpnTapDriver {
+    fn close_descriptor(_: &mut ::Descriptor<OpenvpnTapDriver>) -> Result<(), TunTapError> {
         Ok(())
     }
 }
 
-impl Native {
-    pub fn new() -> Native {
-        Native {}
+impl OpenvpnTapDriver {
+    pub fn new() -> OpenvpnTapDriver {
+        OpenvpnTapDriver {}
     }
 
-    pub fn open_tun(
-        &self,
-        device_id: &str,
-        ip: Ipv4Addr,
-        network: Ipv4Addr,
-        netmask: Ipv4Addr,
-    ) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
-        let (file, name) = Native::open_dev(device_id, Some((ip, network, netmask)))?;
+    pub fn open_tun(&self, device_id: &str, ip: Ipv4Addr, network: Ipv4Addr, netmask: Ipv4Addr) -> Result<::Virtualnterface<::Descriptor<OpenvpnTapDriver>>, TunTapError> {
+        let (file, name) = OpenvpnTapDriver::open_dev(device_id, Some((ip, network, netmask)))?;
 
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -58,11 +50,8 @@ impl Native {
         })
     }
 
-    pub fn open_tap(
-        &self,
-        device_id: &str,
-    ) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
-        let (file, name) = Native::open_dev(device_id, None)?;
+    pub fn open_tap(&self, device_id: &str) -> Result<::Virtualnterface<::Descriptor<OpenvpnTapDriver>>, TunTapError> {
+        let (file, name) = OpenvpnTapDriver::open_dev(device_id, None)?;
 
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -76,7 +65,7 @@ impl Native {
     }
 }
 
-impl Native {
+impl OpenvpnTapDriver {
     fn get_instance_id(req_component_id: &str) -> Result<Option<String>, TunTapError> {
         let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
         let base_path = Path::new("SYSTEM")
@@ -97,11 +86,8 @@ impl Native {
         Ok(None)
     }
 
-    fn open_dev(
-        device_id: &str,
-        tun_args: Option<(Ipv4Addr, Ipv4Addr, Ipv4Addr)>,
-    ) -> Result<(File, String), TunTapError> {
-        match Native::get_instance_id(device_id)? {
+    fn open_dev(device_id: &str, tun_args: Option<(Ipv4Addr, Ipv4Addr, Ipv4Addr)>) -> Result<(File, String), TunTapError> {
+        match OpenvpnTapDriver::get_instance_id(device_id)? {
             None => {
                 return Err(TunTapError::DriverNotFound {
                     msg: format!("device_id {} not found", device_id),
@@ -162,7 +148,7 @@ impl Native {
 
                 if let Some((ip, network, netmask)) = tun_args {
                     //Set TUN
-                    let mut code2 = [0u8; 12];  // = [192, 168, 66, 12, 192, 168, 66, 0, 255, 255, 255, 0];
+                    let mut code2 = [0u8; 12]; // = [192, 168, 66, 12, 192, 168, 66, 0, 255, 255, 255, 0];
                     let mut rbuf = [0u8; MAXIMUM_REPARSE_DATA_BUFFER_SIZE as usize];
                     code2[0..4].copy_from_slice(&ip.octets()[..]);
                     code2[4..8].copy_from_slice(&network.octets()[..]);
@@ -197,8 +183,7 @@ impl Native {
                             }
                         }
                         false
-                    })
-                    .next();
+                    }).next();
 
                 if let Some(adapter_info) = maybe_adapter_name {
                     return Ok((file, adapter_info.friendly_name().clone()));
