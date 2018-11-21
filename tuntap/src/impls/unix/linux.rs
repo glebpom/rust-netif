@@ -12,24 +12,27 @@ impl Native {
         Native {}
     }
 
-    pub unsafe fn tun_async_from_fd(&self, ifname: &str, fd: RawFd) -> Result<::Virtualnterface<PollEvented2<EventedDescriptor<Native>>>, TunTapError> {
+    pub unsafe fn tun_async_from_fds(&self, ifname: &str, fds: &[RawFd]) -> Result<::Virtualnterface<PollEvented2<EventedDescriptor<Native>>>, TunTapError> {
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name: ifname.to_owned(),
             iface_type: ::VirtualInterfaceType::Tun,
         }));
         Ok(::Virtualnterface {
-            queues: vec![PollEvented2::new(EventedDescriptor(::Descriptor::from_file(File::from_raw_fd(fd), &info)))],
+            queues: fds
+                .iter()
+                .map(|&fd| PollEvented2::new(EventedDescriptor(::Descriptor::from_file(File::from_raw_fd(fd), &info))))
+                .collect(),
             info: Arc::downgrade(&info),
         })
     }
 
-    pub unsafe fn tun_from_fd(&self, ifname: &str, fd: RawFd) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
+    pub unsafe fn tun_from_fds(&self, ifname: &str, fds: &[RawFd]) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name: ifname.to_owned(),
             iface_type: ::VirtualInterfaceType::Tun,
         }));
         Ok(::Virtualnterface {
-            queues: vec![::Descriptor::from_file(File::from_raw_fd(fd), &info)],
+            queues: fds.iter().map(|&fd| ::Descriptor::from_file(File::from_raw_fd(fd), &info)).collect(),
             info: Arc::downgrade(&info),
         })
     }
