@@ -24,6 +24,8 @@ extern crate nix;
 #[cfg(windows)]
 extern crate ipconfig;
 #[cfg(windows)]
+extern crate miow;
+#[cfg(windows)]
 extern crate winapi;
 #[cfg(windows)]
 extern crate winreg;
@@ -123,7 +125,14 @@ pub struct VirtualInterfaceInfo {
 }
 
 pub struct Descriptor<C: DescriptorCloser> {
-    file: File,
+    #[cfg(not(windows))]
+    inner: File,
+    #[cfg(windows)]
+    inner: impls::Handle,
+    #[cfg(windows)]
+    read_overlapped: miow::Overlapped,
+    #[cfg(windows)]
+    write_overlapped: miow::Overlapped,
     #[allow(dead_code)]
     info: Arc<Mutex<VirtualInterfaceInfo>>,
     _closer: ::std::marker::PhantomData<C>,
@@ -134,8 +143,18 @@ where
     C: DescriptorCloser,
 {
     fn from_file(file: File, info: &Arc<Mutex<VirtualInterfaceInfo>>) -> Descriptor<C> {
+        #[cfg(windows)]
+        use std::os::windows::io::IntoRawHandle;
+
         Descriptor {
-            file,
+            #[cfg(not(windows))]
+            inner: file,
+            #[cfg(windows)]
+            inner: Handle::new(file.into_raw_handle()),
+            #[cfg(windows)]
+            read_overlapped: miow::Overlapped::initialize_with_autoreset_event().unwrap(),
+            #[cfg(windows)]
+            write_overlapped: miow::Overlapped::initialize_with_autoreset_event().unwrap(),
             _closer: Default::default(),
             info: info.clone(),
         }
@@ -143,7 +162,11 @@ where
 
     fn try_clone(&self) -> Result<Self, TunTapError> {
         Ok(Descriptor {
-            file: self.file.try_clone()?,
+            inner: self.inner.try_clone()?,
+            #[cfg(windows)]
+            read_overlapped: miow::Overlapped::initialize_with_autoreset_event().unwrap(),
+            #[cfg(windows)]
+            write_overlapped: miow::Overlapped::initialize_with_autoreset_event().unwrap(),
             _closer: Default::default(),
             info: self.info.clone(),
         })
@@ -159,15 +182,41 @@ where
     }
 }
 
+#[cfg(windows)]
 impl<C> Read for Descriptor<C>
 where
     C: DescriptorCloser,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.file.read(buf)
+        unsafe { self.inner.read_overlapped_wait(buf, self.read_overlapped.raw()) }
     }
 }
 
+#[cfg(not(windows))]
+impl<C> Read for Descriptor<C>
+where
+    C: DescriptorCloser,
+{
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.file.read()
+    }
+}
+
+#[cfg(windows)]
+impl<C> Write for Descriptor<C>
+where
+    C: DescriptorCloser,
+{
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        unsafe { self.inner.write_overlapped_wait(buf, self.write_overlapped.raw()) }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+#[cfg(not(windows))]
 impl<C> Write for Descriptor<C>
 where
     C: DescriptorCloser,
@@ -177,7 +226,7 @@ where
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.file.flush()
+        self.inner.flush()
     }
 }
 

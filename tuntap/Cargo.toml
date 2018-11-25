@@ -28,5 +28,6 @@ ifstructs = {path = "../ifstructs"}
 
 [target.'cfg(target_family="windows")'.dependencies]
 winreg = "0.5.0"
-winapi = {version = "0.3.5", features = ["winbase", "ioapiset", "winioctl"] }
+winapi = {version = "0.3.6", features = ["winbase", "ioapiset", "winioctl", "processthreadsapi"] }
 ipconfig = { git = "https://github.com/glebpom/ipconfig.git", rev = "3e87ff019463433eec5f80c6cce28b16077df3f1"}
+miow = "0.3.3"

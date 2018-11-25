@@ -10,12 +10,19 @@ use std::path::Path;
 use std::ptr;
 use std::sync::{Arc, Mutex};
 use winapi::ctypes::c_void;
+use winapi::um::handleapi::CloseHandle;
 use winapi::um::ioapiset::DeviceIoControl;
+use winapi::um::winbase::FILE_FLAG_OVERLAPPED;
 use winapi::um::winioctl::FILE_DEVICE_UNKNOWN;
 use winapi::um::winnt::{FILE_ATTRIBUTE_SYSTEM, FILE_SHARE_READ, FILE_SHARE_WRITE, MAXIMUM_REPARSE_DATA_BUFFER_SIZE};
 use winreg::enums::*;
 use winreg::RegKey;
 use TunTapError;
+
+mod handle;
+
+pub use self::handle::Handle;
+use self::handle::cvt;
 
 macro_rules! CTL_CODE {
     ($DeviceType:expr, $Function:expr, $Method:expr, $Access:expr) => {
@@ -26,7 +33,9 @@ macro_rules! CTL_CODE {
 pub struct OpenvpnTapDriver {}
 
 impl ::DescriptorCloser for OpenvpnTapDriver {
-    fn close_descriptor(_: &mut ::Descriptor<OpenvpnTapDriver>) -> Result<(), TunTapError> {
+    fn close_descriptor(desc: &mut ::Descriptor<OpenvpnTapDriver>) -> Result<(), TunTapError> {
+        unsafe { cvt(CloseHandle(desc.read_overlapped.event())) }?;
+        unsafe { cvt(CloseHandle(desc.write_overlapped.event())) }?;
         Ok(())
     }
 }
@@ -100,7 +109,7 @@ impl OpenvpnTapDriver {
                     .write(true)
                     .append(false)
                     .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
-                    .attributes(FILE_ATTRIBUTE_SYSTEM)
+                    .attributes(FILE_ATTRIBUTE_SYSTEM | FILE_FLAG_OVERLAPPED)
                     .create(false)
                     .truncate(false)
                     .create_new(false)
