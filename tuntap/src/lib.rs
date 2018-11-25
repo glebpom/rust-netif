@@ -198,7 +198,7 @@ where
     C: DescriptorCloser,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.file.read()
+        self.inner.read()
     }
 }
 
@@ -222,7 +222,7 @@ where
     C: DescriptorCloser,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.file.write(buf)
+        self.inner.write(buf)
     }
 
     fn flush(&mut self) -> io::Result<()> {
