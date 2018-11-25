@@ -198,7 +198,7 @@ where
     C: DescriptorCloser,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.inner.read()
+        self.inner.read(buf)
     }
 }
 

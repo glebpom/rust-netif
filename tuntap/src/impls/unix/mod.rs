@@ -28,7 +28,7 @@ where
     C: ::DescriptorCloser,
 {
     fn as_raw_fd(&self) -> RawFd {
-        self.file.as_raw_fd()
+        self.inner.as_raw_fd()
     }
 }
 
