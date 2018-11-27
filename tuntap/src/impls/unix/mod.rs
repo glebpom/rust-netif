@@ -1,16 +1,16 @@
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+mod apple;
 #[cfg(target_os = "freebsd")]
 mod freebsd;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 mod linux;
-#[cfg(target_os = "macos")]
-mod macos;
 
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+pub use self::apple::*;
 #[cfg(target_os = "freebsd")]
 pub use self::freebsd::*;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub use self::linux::*;
-#[cfg(target_os = "macos")]
-pub use self::macos::*;
 
 use bytes::{Bytes, BytesMut, IntoBuf};
 use futures::{Async, AsyncSink, Poll, Sink, StartSend, Stream};
