@@ -5,7 +5,7 @@ use std::io;
 use std::io::Cursor;
 use std::net::Ipv4Addr;
 use std::os::windows::fs::OpenOptionsExt;
-use std::os::windows::io::AsRawHandle;
+use std::os::windows::io::{AsRawHandle, RawHandle};
 use std::path::Path;
 use std::ptr;
 use std::sync::{Arc, Mutex};
@@ -32,10 +32,37 @@ macro_rules! CTL_CODE {
 
 pub struct OpenvpnTapDriver {}
 
+fn set_iface_status(handle: RawHandle, is_up: bool) -> Result<(), io::Error> {
+        let mut rbuf = [0u8; MAXIMUM_REPARSE_DATA_BUFFER_SIZE as usize];
+        let mut code = [0u8, 0u8, 0u8, 0u8];
+        let mut bytes_returned = 0u32;
+
+        if is_up {
+            code[0] = 1;
+        }
+        if unsafe {
+            DeviceIoControl(
+                handle as *mut _ as *mut c_void,
+                CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x06, 0, 0),
+                &mut code as *mut _ as *mut c_void,
+                4,
+                &mut rbuf as *mut _ as *mut c_void,
+                MAXIMUM_REPARSE_DATA_BUFFER_SIZE,
+                &mut bytes_returned,
+                ptr::null_mut(),
+            )
+        } == 0
+        {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+}
+
 impl ::DescriptorCloser for OpenvpnTapDriver {
     fn close_descriptor(desc: &mut ::Descriptor<OpenvpnTapDriver>) -> Result<(), TunTapError> {
         unsafe { cvt(CloseHandle(desc.read_overlapped.event())) }?;
         unsafe { cvt(CloseHandle(desc.write_overlapped.event())) }?;
+        let _ = set_iface_status(desc.inner.raw(), false);
         Ok(())
     }
 }
@@ -137,23 +164,7 @@ impl OpenvpnTapDriver {
                 let mac = mac[..(bytes_returned as usize)].to_vec();
 
                 //Up Device
-                let mut rbuf = [0u8; MAXIMUM_REPARSE_DATA_BUFFER_SIZE as usize];
-                let mut code = [1u8, 0u8, 0u8, 0u8]; //UP
-                if unsafe {
-                    DeviceIoControl(
-                        file.as_raw_handle() as *mut _ as *mut c_void,
-                        CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x06, 0, 0),
-                        &mut code as *mut _ as *mut c_void,
-                        4,
-                        &mut rbuf as *mut _ as *mut c_void,
-                        MAXIMUM_REPARSE_DATA_BUFFER_SIZE,
-                        &mut bytes_returned,
-                        ptr::null_mut(),
-                    )
-                } == 0
-                {
-                    return Err(io::Error::last_os_error().into());
-                }
+                set_iface_status(file.as_raw_handle(), true)?;
 
                 if let Some((ip, network, netmask)) = tun_args {
                     //Set TUN
