@@ -60,9 +60,8 @@ fn set_iface_status(handle: RawHandle, is_up: bool) -> Result<(), io::Error> {
 
 impl ::DescriptorCloser for OpenvpnTapDriver {
     fn close_descriptor(desc: &mut ::Descriptor<OpenvpnTapDriver>) -> Result<(), TunTapError> {
-        unsafe { cvt(CloseHandle(desc.read_overlapped.event())) }?;
-        unsafe { cvt(CloseHandle(desc.write_overlapped.event())) }?;
-        let _ = set_iface_status(desc.inner.raw(), false);
+        let _ = unsafe { cvt(CloseHandle(desc.read_overlapped.event())) };
+        let _ = unsafe { cvt(CloseHandle(desc.write_overlapped.event())) };
         Ok(())
     }
 }

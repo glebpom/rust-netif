@@ -130,9 +130,9 @@ pub struct Descriptor<C: DescriptorCloser> {
     #[cfg(windows)]
     inner: impls::Handle,
     #[cfg(windows)]
-    read_overlapped: miow::Overlapped,
+    read_overlapped: Arc<miow::Overlapped>,
     #[cfg(windows)]
-    write_overlapped: miow::Overlapped,
+    write_overlapped: Arc<miow::Overlapped>,
     #[allow(dead_code)]
     info: Arc<Mutex<VirtualInterfaceInfo>>,
     _closer: ::std::marker::PhantomData<C>,
@@ -152,9 +152,9 @@ where
             #[cfg(windows)]
             inner: Handle::new(file.into_raw_handle()),
             #[cfg(windows)]
-            read_overlapped: miow::Overlapped::initialize_with_autoreset_event().unwrap(),
+            read_overlapped: Arc::new(miow::Overlapped::initialize_with_autoreset_event().unwrap()),
             #[cfg(windows)]
-            write_overlapped: miow::Overlapped::initialize_with_autoreset_event().unwrap(),
+            write_overlapped: Arc::new(miow::Overlapped::initialize_with_autoreset_event().unwrap()),
             _closer: Default::default(),
             info: info.clone(),
         }
@@ -164,9 +164,9 @@ where
         Ok(Descriptor {
             inner: self.inner.try_clone()?,
             #[cfg(windows)]
-            read_overlapped: miow::Overlapped::initialize_with_autoreset_event().unwrap(),
+            read_overlapped: self.read_overlapped.clone(),
             #[cfg(windows)]
-            write_overlapped: miow::Overlapped::initialize_with_autoreset_event().unwrap(),
+            write_overlapped: self.write_overlapped.clone(),
             _closer: Default::default(),
             info: self.info.clone(),
         })
@@ -244,6 +244,7 @@ where
     }
 
     pub fn pop_split_channels(&mut self) -> Option<(impl Sink<SinkItem = Bytes, SinkError = io::Error>, impl Stream<Item = Bytes, Error = io::Error>)> {
+        //TODO: share handle through Arc, instead of clone?
         let mut write_file = self.pop_file()?;
         let mut read_file = write_file.try_clone().unwrap();
 
