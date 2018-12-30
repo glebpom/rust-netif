@@ -119,7 +119,7 @@ impl<C> Stream for AsyncDescriptor<C>
 where
     C: ::DescriptorCloser,
 {
-    type Item = Bytes;
+    type Item = BytesMut;
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
@@ -131,7 +131,7 @@ where
                     if cur_capacity < ::MTU {
                         self.outgoing.reserve(::RESERVE_AT_ONCE);
                     }
-                    return Ok(Async::Ready(Some(packet.freeze())));
+                    return Ok(Async::Ready(Some(packet)));
                 }
             }
             Ok(Async::NotReady)
@@ -191,7 +191,7 @@ impl<C> ::Virtualnterface<PollEvented2<EventedDescriptor<C>>>
 where
     C: ::DescriptorCloser,
 {
-    pub fn pop_split_channels(&mut self) -> Option<(impl Sink<SinkItem = Bytes, SinkError = io::Error>, impl Stream<Item = Bytes, Error = io::Error>)> {
+    pub fn pop_split_channels(&mut self) -> Option<(impl Sink<SinkItem = Bytes, SinkError = io::Error>, impl Stream<Item = BytesMut, Error = io::Error>)> {
         if let Some(q) = self.queues.pop() {
             Some(AsyncDescriptor::from(q).split())
         } else {

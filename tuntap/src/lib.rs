@@ -243,13 +243,13 @@ where
         self.queues.pop()
     }
 
-    pub fn pop_split_channels(&mut self) -> Option<(impl Sink<SinkItem = Bytes, SinkError = io::Error>, impl Stream<Item = Bytes, Error = io::Error>)> {
+    pub fn pop_split_channels(&mut self) -> Option<(impl Sink<SinkItem = Bytes, SinkError = io::Error>, impl Stream<Item = BytesMut, Error = io::Error>)> {
         //TODO: share handle through Arc, instead of clone?
         let mut write_file = self.pop_file()?;
         let mut read_file = write_file.try_clone().unwrap();
 
         //hardcoded buffer size. move to builder somehow?
-        let (outgoing_tx, outgoing_rx) = mpsc::channel::<Bytes>(4);
+        let (outgoing_tx, outgoing_rx) = mpsc::channel::<BytesMut>(4);
         let (incoming_tx, incoming_rx) = mpsc::channel::<Bytes>(4);
 
         let _handle_outgoing = thread::spawn(move || {
@@ -261,7 +261,7 @@ where
                 if cur_capacity < ::MTU {
                     buf.resize(::RESERVE_AT_ONCE, 0);
                 }
-                if let Err(_e) = outgoing_tx.clone().send(packet.freeze()).wait() {
+                if let Err(_e) = outgoing_tx.clone().send(packet).wait() {
                     //stop thread because other side is gone
                     break;
                 }
