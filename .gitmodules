@@ -1,0 +1,3 @@
+[submodule "ipconfig"]
+	path = ipconfig
+	url = git@github.com:glebpom/ipconfig.git
