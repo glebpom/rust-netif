@@ -73,11 +73,7 @@ mod tests {
 
         let res = unsafe { libc::ioctl(sock, request_code, &mut req) };
         if res < 0 {
-            panic!(
-                "SIOCGIFFLAGS failed with error on device '{}': {:?}",
-                iface_name,
-                io::Error::last_os_error()
-            );
+            panic!("SIOCGIFFLAGS failed with error on device '{}': {:?}", iface_name, io::Error::last_os_error());
         }
 
         let flags = unsafe { req.get_flags() };

@@ -11,8 +11,8 @@ use winapi::um::handleapi::*;
 use winapi::um::ioapiset::*;
 use winapi::um::minwinbase::*;
 use winapi::um::processthreadsapi::*;
-use winapi::um::winnt::*;
 use winapi::um::winbase::COMMTIMEOUTS;
+use winapi::um::winnt::*;
 
 pub(crate) fn cvt(i: BOOL) -> io::Result<BOOL> {
     if i == 0 {
@@ -135,13 +135,16 @@ impl Handle {
 
     pub fn set_no_timeouts(&self) -> io::Result<()> {
         cvt(unsafe {
-            SetCommTimeouts(self.0, &mut COMMTIMEOUTS {
-                ReadIntervalTimeout: 0,
-                ReadTotalTimeoutMultiplier: 0,
-                ReadTotalTimeoutConstant: 0,
-                WriteTotalTimeoutMultiplier: 0,
-                WriteTotalTimeoutConstant: 0,
-            })
+            SetCommTimeouts(
+                self.0,
+                &mut COMMTIMEOUTS {
+                    ReadIntervalTimeout: 0,
+                    ReadTotalTimeoutMultiplier: 0,
+                    ReadTotalTimeoutConstant: 0,
+                    WriteTotalTimeoutMultiplier: 0,
+                    WriteTotalTimeoutConstant: 0,
+                },
+            )
         })?;
         Ok(())
     }

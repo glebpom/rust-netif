@@ -21,8 +21,8 @@ use TunTapError;
 
 mod handle;
 
-pub use self::handle::Handle;
 use self::handle::cvt;
+pub use self::handle::Handle;
 
 macro_rules! CTL_CODE {
     ($DeviceType:expr, $Function:expr, $Method:expr, $Access:expr) => {
@@ -33,29 +33,29 @@ macro_rules! CTL_CODE {
 pub struct OpenvpnTapDriver {}
 
 fn set_iface_status(handle: RawHandle, is_up: bool) -> Result<(), io::Error> {
-        let mut rbuf = [0u8; MAXIMUM_REPARSE_DATA_BUFFER_SIZE as usize];
-        let mut code = [0u8, 0u8, 0u8, 0u8];
-        let mut bytes_returned = 0u32;
+    let mut rbuf = [0u8; MAXIMUM_REPARSE_DATA_BUFFER_SIZE as usize];
+    let mut code = [0u8, 0u8, 0u8, 0u8];
+    let mut bytes_returned = 0u32;
 
-        if is_up {
-            code[0] = 1;
-        }
-        if unsafe {
-            DeviceIoControl(
-                handle as *mut _ as *mut c_void,
-                CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x06, 0, 0),
-                &mut code as *mut _ as *mut c_void,
-                4,
-                &mut rbuf as *mut _ as *mut c_void,
-                MAXIMUM_REPARSE_DATA_BUFFER_SIZE,
-                &mut bytes_returned,
-                ptr::null_mut(),
-            )
-        } == 0
-        {
-            return Err(io::Error::last_os_error());
-        }
-        Ok(())
+    if is_up {
+        code[0] = 1;
+    }
+    if unsafe {
+        DeviceIoControl(
+            handle as *mut _ as *mut c_void,
+            CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x06, 0, 0),
+            &mut code as *mut _ as *mut c_void,
+            4,
+            &mut rbuf as *mut _ as *mut c_void,
+            MAXIMUM_REPARSE_DATA_BUFFER_SIZE,
+            &mut bytes_returned,
+            ptr::null_mut(),
+        )
+    } == 0
+    {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
 }
 
 impl ::DescriptorCloser for OpenvpnTapDriver {
@@ -202,7 +202,8 @@ impl OpenvpnTapDriver {
                             }
                         }
                         false
-                    }).next();
+                    })
+                    .next();
 
                 if let Some(adapter_info) = maybe_adapter_name {
                     return Ok((file, adapter_info.friendly_name().clone()));

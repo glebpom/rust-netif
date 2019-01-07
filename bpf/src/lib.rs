@@ -41,10 +41,7 @@ impl Bpf {
 
             let file = f?;
 
-            return Ok(Bpf {
-                inner: file,
-                iface: iface.to_owned(),
-            });
+            return Ok(Bpf { inner: file, iface: iface.to_owned() });
         }
     }
 }
