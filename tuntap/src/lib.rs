@@ -4,45 +4,42 @@
 #[macro_use]
 extern crate bitflags;
 extern crate bytes;
-extern crate futures;
-extern crate mio;
-extern crate tokio;
 #[macro_use]
 extern crate failure;
-
+extern crate futures;
+extern crate ifcontrol;
 #[cfg(unix)]
 extern crate ifstructs;
-
-extern crate ifcontrol;
-
+#[cfg(windows)]
+extern crate ipconfig;
 #[cfg(unix)]
 extern crate libc;
+extern crate mio;
+#[cfg(windows)]
+extern crate miow;
 #[cfg(unix)]
 #[macro_use]
 extern crate nix;
-
-#[cfg(windows)]
-extern crate ipconfig;
-#[cfg(windows)]
-extern crate miow;
+extern crate tokio;
 #[cfg(windows)]
 extern crate winapi;
 #[cfg(windows)]
 extern crate winreg;
 
-mod impls;
-
-pub use impls::*;
-
-use bytes::{Bytes, BytesMut};
-use futures::sync::mpsc;
-use futures::{Future, Sink, Stream};
 use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
 use std::string::ToString;
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
+
+use bytes::{Bytes, BytesMut};
+use futures::sync::mpsc;
+use futures::{Future, Sink, Stream};
+
+pub use impls::*;
+
+mod impls;
 
 const MTU: usize = 2000;
 const RESERVE_AT_ONCE: usize = 65536; //reserve large buffer once
@@ -107,7 +104,8 @@ impl ToString for VirtualInterfaceType {
         match *self {
             VirtualInterfaceType::Tap => "tap",
             VirtualInterfaceType::Tun => "tun",
-        }.to_string()
+        }
+        .to_string()
     }
 }
 
@@ -143,14 +141,22 @@ where
     C: DescriptorCloser,
 {
     fn from_file(file: File, info: &Arc<Mutex<VirtualInterfaceInfo>>) -> Descriptor<C> {
+        //TODO: return io::Result
         #[cfg(windows)]
         use std::os::windows::io::IntoRawHandle;
+
+        #[cfg(windows)]
+        let inner = {
+            let inner = Handle::new(file.into_raw_handle());
+            inner.set_no_timeouts().expect("Could not unset timeout");
+            inner
+        };
 
         Descriptor {
             #[cfg(not(windows))]
             inner: file,
             #[cfg(windows)]
-            inner: Handle::new(file.into_raw_handle()),
+            inner,
             #[cfg(windows)]
             read_overlapped: Arc::new(miow::Overlapped::initialize_with_autoreset_event().unwrap()),
             #[cfg(windows)]
@@ -161,8 +167,13 @@ where
     }
 
     fn try_clone(&self) -> Result<Self, TunTapError> {
+        let cloned = self.inner.try_clone()?;
+
+        #[cfg(windows)]
+        cloned.set_no_timeouts();
+
         Ok(Descriptor {
-            inner: self.inner.try_clone()?,
+            inner: cloned,
             #[cfg(windows)]
             read_overlapped: self.read_overlapped.clone(),
             #[cfg(windows)]
