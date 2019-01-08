@@ -189,6 +189,7 @@ where
     C: DescriptorCloser,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        impls::reset_overlapped(self.read_overlapped.raw())?;
         unsafe { self.inner.read_overlapped_wait(buf, self.read_overlapped.raw()) }
     }
 }
@@ -209,6 +210,7 @@ where
     C: DescriptorCloser,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        impls::reset_overlapped(self.write_overlapped.raw())?;
         unsafe { self.inner.write_overlapped_wait(buf, self.write_overlapped.raw()) }
     }
 

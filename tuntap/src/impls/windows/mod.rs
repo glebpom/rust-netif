@@ -22,7 +22,7 @@ use TunTapError;
 mod handle;
 
 use self::handle::cvt;
-pub use self::handle::Handle;
+pub use self::handle::{Handle, reset_overlapped};
 
 macro_rules! CTL_CODE {
     ($DeviceType:expr, $Function:expr, $Method:expr, $Access:expr) => {
