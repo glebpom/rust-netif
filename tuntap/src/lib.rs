@@ -279,11 +279,11 @@ where
                         }
                     },
                     Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {
-//                        warn!(log, "TimedOut on outlet read. ignoring");
+                        eprintln!("TimedOut on outlet read. ignoring");
                         // do nothing
                     },
-                    Err(ref _e) => {
-//                        error!(log, "Error {:?} on outlet. Stop read thread", e);
+                    Err(ref e) => {
+                        eprintln!("Error {:?} on outlet. Stop read thread", e);
                         break;
                     }
                 }
