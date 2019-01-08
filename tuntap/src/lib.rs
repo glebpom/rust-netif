@@ -266,15 +266,26 @@ where
         let _handle_outgoing = thread::spawn(move || {
             let mut buf = BytesMut::from(vec![0u8; ::RESERVE_AT_ONCE]);
             loop {
-                let len = read_file.read(&mut buf).expect("Couldn't read from virtual interface");
-                let packet = buf.split_to(len);
-                let cur_capacity = buf.len();
-                if cur_capacity < ::MTU {
-                    buf.resize(::RESERVE_AT_ONCE, 0);
-                }
-                if let Err(_e) = outgoing_tx.clone().send(packet).wait() {
-                    //stop thread because other side is gone
-                    break;
+                match read_file.read(&mut buf) {
+                    Ok(len) => {
+                        let packet = buf.split_to(len);
+                        let cur_capacity = buf.len();
+                        if cur_capacity < ::MTU {
+                            buf.resize(::RESERVE_AT_ONCE, 0);
+                        }
+                        if let Err(_e) = outgoing_tx.clone().send(packet).wait() {
+                            //stop thread because other side is gone
+                            break;
+                        }
+                    },
+                    Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {
+//                        warn!(log, "TimedOut on outlet read. ignoring");
+                        // do nothing
+                    },
+                    Err(ref _e) => {
+//                        error!(log, "Error {:?} on outlet. Stop read thread", e);
+                        break;
+                    }
                 }
             }
         });
@@ -286,7 +297,7 @@ where
                     break;
                 }
                 let mut packet = input.unwrap();
-                write_file.write_all(&mut packet).unwrap();
+                write_file.write_all(&mut packet).expect("Error writing to outlet. Exiting thread");
             }
         });
 
