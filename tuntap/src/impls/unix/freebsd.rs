@@ -100,9 +100,9 @@ fn get_viface_name(file: &File) -> Result<String, TunTapError> {
     let st_rdev = fstat(file.as_raw_fd()).unwrap().st_rdev;
     let device_name = unsafe { devname(st_rdev, S_IFCHR) };
     if device_name.is_null() {
-        return TunTapError::NotFound {
+        return Err(TunTapError::NotFound {
             msg: "interface not found".to_owned(),
-        };
+        });
     }
     unsafe { CString::from_raw(device_name) }.into_string().map_err(|_| TunTapError::BadData {
         msg: "bad iface name returned from kernel".to_owned(),
@@ -151,7 +151,7 @@ impl ::DescriptorCloser for Native {
     fn close_descriptor(d: &mut ::Descriptor<Native>) -> Result<(), TunTapError> {
         let name = d.info.lock().unwrap().name.clone();
         //Close underlying file at first
-        mem::drop(mem::replace(&mut d.file, File::open("/dev/null")?));
+        mem::drop(mem::replace(&mut d.inner, File::open("/dev/null")?));
 
         let mut req = ifreq::from_name(&name)?;
 
