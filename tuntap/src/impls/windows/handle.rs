@@ -1,6 +1,5 @@
 use std::cmp;
 use std::io;
-use std::mem;
 use std::ptr;
 
 use winapi::shared::minwindef::*;
@@ -11,7 +10,6 @@ use winapi::um::handleapi::*;
 use winapi::um::ioapiset::*;
 use winapi::um::minwinbase::*;
 use winapi::um::processthreadsapi::*;
-use winapi::um::synchapi::*;
 use winapi::um::winnt::*;
 
 pub(crate) fn cvt(i: BOOL) -> io::Result<BOOL> {
@@ -22,21 +20,10 @@ pub(crate) fn cvt(i: BOOL) -> io::Result<BOOL> {
     }
 }
 
-pub fn reset_overlapped(overlapped: *mut OVERLAPPED) -> io::Result<()> {
-    unsafe {
-        let hEvent = (*overlapped).hEvent;
-        cvt(ResetEvent(hEvent))?;
-//        mem::replace(&mut *overlapped, mem::zeroed());
-//        (*overlapped).hEvent = hEvent;
-        Ok(())
-    }
-}
-
 #[derive(Debug)]
 pub struct Handle(HANDLE);
 
 unsafe impl Send for Handle {}
-
 unsafe impl Sync for Handle {}
 
 impl Handle {
