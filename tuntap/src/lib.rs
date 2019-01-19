@@ -30,19 +30,24 @@ extern crate winapi;
 #[cfg(windows)]
 extern crate winreg;
 
+mod evented;
 mod impls;
 
+pub use evented::EventedDescriptor;
 pub use impls::*;
 
 use bytes::{Bytes, BytesMut};
-use futures::sync::mpsc;
+use futures::sync::{mpsc, oneshot};
 use futures::{Future, Sink, Stream};
 use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
+#[cfg(windows)]
+use std::os::windows::io::{FromRawHandle, IntoRawHandle};
 use std::string::ToString;
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
+use std::time::Duration;
 
 const MTU: usize = 2000;
 const RESERVE_AT_ONCE: usize = 65536; //reserve large buffer once
@@ -126,14 +131,7 @@ pub struct VirtualInterfaceInfo {
 }
 
 pub struct Descriptor<C: DescriptorCloser> {
-    #[cfg(not(windows))]
     inner: File,
-    #[cfg(windows)]
-    inner: impls::Handle,
-    #[cfg(windows)]
-    read_overlapped: Arc<miow::Overlapped>,
-    #[cfg(windows)]
-    write_overlapped: Arc<miow::Overlapped>,
     #[allow(dead_code)]
     info: Arc<Mutex<VirtualInterfaceInfo>>,
     _closer: ::std::marker::PhantomData<C>,
@@ -144,18 +142,8 @@ where
     C: DescriptorCloser,
 {
     fn from_file(file: File, info: &Arc<Mutex<VirtualInterfaceInfo>>) -> Descriptor<C> {
-        #[cfg(windows)]
-        use std::os::windows::io::IntoRawHandle;
-
         Descriptor {
-            #[cfg(not(windows))]
             inner: file,
-            #[cfg(windows)]
-            inner: Handle::new(file.into_raw_handle()),
-            #[cfg(windows)]
-            read_overlapped: Arc::new(miow::Overlapped::initialize_with_autoreset_event().unwrap()),
-            #[cfg(windows)]
-            write_overlapped: Arc::new(miow::Overlapped::initialize_with_autoreset_event().unwrap()),
             _closer: Default::default(),
             info: info.clone(),
         }
@@ -164,10 +152,6 @@ where
     fn try_clone(&self) -> Result<Self, TunTapError> {
         Ok(Descriptor {
             inner: self.inner.try_clone()?,
-            #[cfg(windows)]
-            read_overlapped: self.read_overlapped.clone(),
-            #[cfg(windows)]
-            write_overlapped: self.write_overlapped.clone(),
             _closer: Default::default(),
             info: self.info.clone(),
         })
@@ -183,16 +167,6 @@ where
     }
 }
 
-#[cfg(windows)]
-impl<C> Read for Descriptor<C>
-where
-    C: DescriptorCloser,
-{
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        unsafe { self.inner.read_overlapped_wait(buf, self.read_overlapped.raw()) }
-    }
-}
-
 #[cfg(not(windows))]
 impl<C> Read for Descriptor<C>
 where
@@ -200,20 +174,6 @@ where
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
-    }
-}
-
-#[cfg(windows)]
-impl<C> Write for Descriptor<C>
-where
-    C: DescriptorCloser,
-{
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        unsafe { self.inner.write_overlapped_wait(buf, self.write_overlapped.raw()) }
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
     }
 }
 
@@ -244,10 +204,12 @@ where
         self.queues.pop()
     }
 
+    #[cfg(not(windows))]
     pub fn pop_split_channels(&mut self) -> Option<(impl Sink<SinkItem = Bytes, SinkError = io::Error>, impl Stream<Item = BytesMut, Error = io::Error>)> {
-        //TODO: share handle through Arc, instead of clone?
         let mut write_file = self.pop_file()?;
         let mut read_file = write_file.try_clone().unwrap();
+
+        let (stop_writer_tx, stop_writer_rx) = oneshot::channel::<()>();
 
         //hardcoded buffer size. move to builder somehow?
         let (outgoing_tx, outgoing_rx) = mpsc::channel::<BytesMut>(4);
@@ -258,14 +220,19 @@ where
             loop {
                 match read_file.read(&mut buf) {
                     Ok(len) => {
-                        let packet = buf.split_to(len);
-                        let cur_capacity = buf.len();
-                        if cur_capacity < ::MTU {
-                            buf.resize(::RESERVE_AT_ONCE, 0);
-                        }
-                        if let Err(_e) = outgoing_tx.clone().send(packet).wait() {
-                            //stop thread because other side is gone
-                            break;
+                        if len > 0 {
+                            let packet = buf.split_to(len);
+                            let cur_capacity = buf.len();
+                            if cur_capacity < ::MTU {
+                                buf.resize(::RESERVE_AT_ONCE, 0);
+                            }
+                            packet.clone();
+                            if let Err(e) = outgoing_tx.clone().send(packet).wait() {
+                                eprintln!("Error sending packet to channel {:?}", e);
+
+                                //stop thread because other side is gone
+                                break;
+                            }
                         }
                     }
                     Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {
@@ -278,17 +245,23 @@ where
                     }
                 }
             }
+            eprintln!("Read: Exit from loop");
+            let _ = stop_writer_tx.send(());
         });
 
         let _handle_incoming = thread::spawn(move || {
-            for input in incoming_rx.wait() {
-                if let Err(()) = input {
-                    //stop thread because other side is gone
-                    break;
-                }
-                let mut packet = input.unwrap();
-                write_file.write_all(&mut packet).expect("Error writing to outlet. Exiting thread");
-            }
+            incoming_rx
+                .for_each(|mut packet| {
+                    println!("New incoming packet received");
+                    write_file.write_all(&mut packet).map_err(|e| {
+                        eprintln!("Error on outlet {:?}", e);
+                        ()
+                    })
+                })
+                .select(stop_writer_rx.then(|_| Ok(())))
+                .map_err(|_| ())
+                .wait()
+                .expect("Could not write to outlet");
         });
 
         Some((

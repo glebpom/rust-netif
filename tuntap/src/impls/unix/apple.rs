@@ -1,3 +1,4 @@
+use crate::evented::EventedDescriptor;
 use ifcontrol::Iface;
 use impls::unix::*;
 use libc;
@@ -8,6 +9,7 @@ use nix::sys::socket::{connect, getsockopt, socket, AddressFamily, GetSockOpt, S
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::os::unix::io::FromRawFd;
+use std::os::unix::prelude::*;
 use std::path::Path;
 use std::str;
 use std::sync::{Arc, Mutex};
@@ -51,10 +53,7 @@ impl Native {
             iface_type: ::VirtualInterfaceType::Tun,
         }));
         Ok(::Virtualnterface {
-            queues: fds
-                .iter()
-                .map(|&fd| PollEvented2::new(EventedDescriptor(::Descriptor::from_file(File::from_raw_fd(fd), &info))))
-                .collect(),
+            queues: fds.iter().map(|&fd| PollEvented2::new(::Descriptor::from_file(File::from_raw_fd(fd), &info).into())).collect(),
             info: Arc::downgrade(&info),
         })
     }
@@ -93,7 +92,7 @@ impl Native {
         })
     }
 
-    pub fn create_tun_async(&self, unit: u32) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>, TunTapError> {
+    pub fn create_tun_async(&self, unit: u32) -> Result<::Virtualnterface<PollEvented2<EventedDescriptor<Native>>>, TunTapError> {
         let (fd, name) = self.create_tun_inner(unit, true)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -205,7 +204,7 @@ macro_rules! create_descriptor {
             None => {
                 return Err(TunTapError::NotSupported {
                     msg: format!("{} is not configured in backend", stringify!($iface_name)),
-                })
+                });
             }
         }
     };

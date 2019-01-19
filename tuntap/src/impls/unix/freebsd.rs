@@ -1,3 +1,4 @@
+use crate::evented::EventedDescriptor;
 use ifcontrol::Iface;
 use ifstructs::ifreq;
 use impls::unix::*;
@@ -52,7 +53,7 @@ impl Native {
         })
     }
 
-    pub fn create_tun_async(&self) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>, TunTapError> {
+    pub fn create_tun_async(&self) -> Result<::Virtualnterface<PollEvented2<EventedDescriptor<Native>>>, TunTapError> {
         let (file, name) = self.create(::VirtualInterfaceType::Tun, true)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -60,19 +61,19 @@ impl Native {
         }));
 
         Ok(::Virtualnterface {
-            queues: vec![PollEvented2::new(super::EventedDescriptor(::Descriptor::from_file(file, &info)))],
+            queues: vec![PollEvented2::new(::Descriptor::from_file(file, &info).into())],
             info: Arc::downgrade(&info),
         })
     }
 
-    pub fn create_tap_async(&self) -> Result<::Virtualnterface<PollEvented2<super::EventedDescriptor<Native>>>, TunTapError> {
+    pub fn create_tap_async(&self) -> Result<::Virtualnterface<PollEvented2<EventedDescriptor<Native>>>, TunTapError> {
         let (file, name) = self.create(::VirtualInterfaceType::Tap, true)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
             iface_type: ::VirtualInterfaceType::Tun,
         }));
         Ok(::Virtualnterface {
-            queues: vec![PollEvented2::new(super::EventedDescriptor(::Descriptor::from_file(file, &info)))],
+            queues: vec![PollEvented2::new(::Descriptor::from_file(file, &info).into())],
             info: Arc::downgrade(&info),
         })
     }
