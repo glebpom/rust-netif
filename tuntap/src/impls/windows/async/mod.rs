@@ -60,7 +60,7 @@ use std::os::windows::io::*;
 use std::slice;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 
 use mio::windows;
 use mio::{Evented, Poll, PollOpt, Ready, Registration, SetReadiness, Token};
@@ -165,7 +165,7 @@ impl<'a> Read for &'a AsyncFile {
             return Err(would_block());
         };
 
-        let mut state = self.inner.io.lock().unwrap();
+        let mut state = self.inner.io.lock();
         match mem::replace(&mut state.read, State::None) {
             // In theory not possible with `ready_registration` checked above,
             // but return would block for now.
@@ -216,7 +216,7 @@ impl<'a> Write for &'a AsyncFile {
         }
 
         // Make sure there's no writes pending
-        let mut io = self.inner.io.lock().unwrap();
+        let mut io = self.inner.io.lock();
         match io.write {
             State::None => {}
             _ => return Err(would_block()),
@@ -340,7 +340,7 @@ impl Drop for AsyncFile {
         // Cancel pending reads, but don't cancel writes to ensure that
         // everything is flushed out.
         unsafe {
-            let io = self.inner.io.lock().unwrap();
+            let io = self.inner.io.lock();
             match io.read {
                 State::Pending(..) => {
                     drop(cancel(&self.inner.handle, &self.inner.read));
@@ -433,7 +433,7 @@ impl Inner {
     }
 
     fn post_register(me: &FromRawArc<Inner>) {
-        let mut io = me.io.lock().unwrap();
+        let mut io = me.io.lock();
         if Inner::schedule_read(&me, &mut io) {
             if let State::None = io.write {
                 me.add_readiness(Ready::writable());
@@ -460,7 +460,7 @@ fn read_done(status: &OVERLAPPED_ENTRY) {
     let me = unsafe { overlapped2arc!(status.overlapped(), Inner, read) };
 
     // Move from the `Pending` to `Ok` state.
-    let mut io = me.io.lock().unwrap();
+    let mut io = me.io.lock();
     let mut buf = match mem::replace(&mut io.read, State::None) {
         State::Pending(buf, _) => buf,
         _ => unreachable!(),
@@ -492,7 +492,7 @@ fn write_done(status: &OVERLAPPED_ENTRY) {
 
     // Make the state change out of `Pending`. If we wrote the entire buffer
     // then we're writable again and otherwise we schedule another write.
-    let mut io = me.io.lock().unwrap();
+    let mut io = me.io.lock();
     let (buf, pos) = match mem::replace(&mut io.write, State::None) {
         State::Pending(buf, pos) => (buf, pos),
         _ => unreachable!(),
