@@ -48,6 +48,11 @@ impl<T> FromRawArc<T> {
         // crucial reason this currently exists.
         FromRawArc { _inner: ptr as *mut Inner<T> }
     }
+
+    pub unsafe fn force_drop(&mut self) {
+        atomic::fence(Ordering::Acquire);
+        drop(mem::transmute::<_, Box<T>>(self._inner));
+    }
 }
 
 impl<T> Clone for FromRawArc<T> {

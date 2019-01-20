@@ -229,24 +229,19 @@ where
                             }
                             packet.clone();
                             if let Err(e) = outgoing_tx.clone().send(packet).wait() {
-                                eprintln!("Error sending packet to channel {:?}", e);
-
                                 //stop thread because other side is gone
                                 break;
                             }
                         }
                     }
                     Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {
-                        eprintln!("TimedOut on outlet read. ignoring");
                         // do nothing
                     }
                     Err(ref e) => {
-                        eprintln!("Error {:?} on outlet. Stop read thread", e);
                         break;
                     }
                 }
             }
-            eprintln!("Read: Exit from loop");
             let _ = stop_writer_tx.send(());
         });
 
@@ -255,7 +250,6 @@ where
                 .for_each(|mut packet| {
                     println!("New incoming packet received");
                     write_file.write_all(&mut packet).map_err(|e| {
-                        eprintln!("Error on outlet {:?}", e);
                         ()
                     })
                 })

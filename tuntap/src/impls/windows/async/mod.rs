@@ -1,55 +1,3 @@
-//! Windows named pipes bindings for mio.
-//!
-//! This crate implements bindings for named pipes for the mio crate. This
-//! crate compiles on all platforms but only contains anything on Windows.
-//! Currently this crate requires mio 0.6.2.
-//!
-//! On Windows, mio is implemented with an IOCP object at the heart of its
-//! `Poll` implementation. For named pipes, this means that all I/O is done in
-//! an overlapped fashion and the named pipes themselves are registered with
-//! mio's internal IOCP object. Essentially, this crate is using IOCP for
-//! bindings with named pipes.
-//!
-//! Note, though, that IOCP is a *completion* based model whereas mio expects a
-//! *readiness* based model. As a result this crate, like with TCP objects in
-//! mio, has internal buffering to translate the completion model to a readiness
-//! model. This means that this crate is not a zero-cost binding over named
-//! pipes on Windows, but rather approximates the performance of mio's TCP
-//! implementation on Windows.
-//!
-//! # Trait implementations
-//!
-//! The `Read` and `Write` traits are implemented for `AsyncFile` and for
-//! `&AsyncFile`. This represents that a named pipe can be concurrently read and
-//! written to and also can be read and written to at all. Typically a named
-//! pipe needs to be connected to a client before it can be read or written,
-//! however.
-//!
-//! Note that for I/O operations on a named pipe to succeed then the named pipe
-//! needs to be associated with an event loop. Until this happens all I/O
-//! operations will return a "would block" error.
-//!
-//! # Managing connections
-//!
-//! The `AsyncFile` type supports a `connect` method to connect to a client and
-//! a `disconnect` method to disconnect from that client. These two methods only
-//! work once a named pipe is associated with an event loop.
-//!
-//! The `connect` method will succeed asynchronously and a completion can be
-//! detected once the object receives a writable notification.
-//!
-//! # Named pipe clients
-//!
-//! Currently to create a client of a named pipe server then you can use the
-//! `OpenOptions` type in the standard library to create a `File` that connects
-//! to a named pipe. Afterwards you can use the `into_raw_handle` method coupled
-//! with the `AsyncFile::from_raw_handle` method to convert that to a named pipe
-//! that can operate asynchronously. Don't forget to pass the
-//! `FILE_FLAG_OVERLAPPED` flag when opening the `File`.
-
-#![cfg(windows)]
-#![deny(missing_docs)]
-
 use std::ffi::OsStr;
 use std::fmt;
 use std::fs::File;
@@ -69,6 +17,7 @@ use winapi::shared::winerror::*;
 use winapi::um::fileapi::*;
 use winapi::um::ioapiset::*;
 use winapi::um::minwinbase::*;
+use winapi::um::handleapi::*;
 
 mod from_raw_arc;
 mod handle;
@@ -340,13 +289,14 @@ impl Drop for AsyncFile {
         // Cancel pending reads, but don't cancel writes to ensure that
         // everything is flushed out.
         unsafe {
-            let io = self.inner.io.lock();
-            match io.read {
-                State::Pending(..) => {
-                    drop(cancel(&self.inner.handle, &self.inner.read));
+            {
+                let io = self.inner.io.lock();
+                match io.read {
+                    State::Pending(..) => {}
+                    _ => { return }
                 }
-                _ => {}
             }
+            self.inner.force_drop();
         }
     }
 }
@@ -391,9 +341,10 @@ impl Inner {
                 true
             }
 
-            // If ERROR_PIPE_LISTENING happens then it's not a real read error,
-            // we just need to wait for a connect.
-            Err(ref e) if e.raw_os_error() == Some(ERROR_PIPE_LISTENING as i32) => false,
+            // If ERROR_OPERATION_ABORTED happens only when interface is shutting down
+            Err(ref e) if e.raw_os_error() == Some(ERROR_OPERATION_ABORTED as i32) => {
+                false
+            },
 
             // If some other error happened, though, we're now readable to give
             // out the error.
@@ -439,15 +390,6 @@ impl Inner {
                 me.add_readiness(Ready::writable());
             }
         }
-    }
-}
-
-unsafe fn cancel(handle: &AsRawHandle, overlapped: &windows::Overlapped) -> io::Result<()> {
-    let ret = CancelIoEx(handle.as_raw_handle(), overlapped.as_mut_ptr() as *mut _);
-    if ret == 0 {
-        Err(io::Error::last_os_error())
-    } else {
-        Ok(())
     }
 }
 
