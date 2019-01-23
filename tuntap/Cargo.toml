@@ -24,7 +24,7 @@ parking_lot = "0.7.1"
 
 [target.'cfg(target_family="unix")'.dependencies]
 libc = "^0.2"
-nix = "0.12.0"
+nix = "0.13.0"
 ifstructs = {path = "../ifstructs"}
 
 [target.'cfg(target_family="windows")'.dependencies]

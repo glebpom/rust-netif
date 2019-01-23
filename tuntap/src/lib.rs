@@ -227,7 +227,6 @@ where
                             if cur_capacity < ::MTU {
                                 buf.resize(::RESERVE_AT_ONCE, 0);
                             }
-                            packet.clone();
                             if let Err(e) = outgoing_tx.clone().send(packet).wait() {
                                 //stop thread because other side is gone
                                 break;
