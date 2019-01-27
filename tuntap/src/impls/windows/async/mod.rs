@@ -341,11 +341,6 @@ impl Inner {
                 true
             }
 
-            // If ERROR_OPERATION_ABORTED happens only when interface is shutting down
-            Err(ref e) if e.raw_os_error() == Some(ERROR_OPERATION_ABORTED as i32) => {
-                false
-            },
-
             // If some other error happened, though, we're now readable to give
             // out the error.
             Err(e) => {
@@ -414,6 +409,7 @@ fn read_done(status: &OVERLAPPED_ENTRY) {
                 buf.set_len(status.bytes_transferred() as usize);
                 io.read = State::Ok(buf, 0);
             }
+
             Err(e) => {
                 debug_assert_eq!(status.bytes_transferred(), 0);
                 io.read = State::Err(e);
