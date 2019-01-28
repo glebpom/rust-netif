@@ -1,3 +1,4 @@
+use parking_lot::Mutex;
 use std::ffi::OsStr;
 use std::fmt;
 use std::fs::File;
@@ -8,16 +9,15 @@ use std::os::windows::io::*;
 use std::slice;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
-use parking_lot::Mutex;
 
 use mio::windows;
 use mio::{Evented, Poll, PollOpt, Ready, Registration, SetReadiness, Token};
 use miow::iocp::CompletionStatus;
 use winapi::shared::winerror::*;
 use winapi::um::fileapi::*;
+use winapi::um::handleapi::*;
 use winapi::um::ioapiset::*;
 use winapi::um::minwinbase::*;
-use winapi::um::handleapi::*;
 
 mod from_raw_arc;
 mod handle;
@@ -223,11 +223,11 @@ impl Evented for AsyncFile {
     }
 }
 
-// impl AsRawHandle for AsyncFile {
-//     fn as_raw_handle(&self) -> RawHandle {
-//         self.inner.handle.as_raw_handle()
-//     }
-// }
+impl AsRawHandle for AsyncFile {
+    fn as_raw_handle(&self) -> RawHandle {
+        self.inner.handle.as_raw_handle()
+    }
+}
 
 // impl FromRawHandle for AsyncFile {
 //     unsafe fn from_raw_handle(handle: RawHandle) -> AsyncFile {
@@ -286,16 +286,7 @@ impl fmt::Debug for AsyncFile {
 
 impl Drop for AsyncFile {
     fn drop(&mut self) {
-        // Cancel pending reads, but don't cancel writes to ensure that
-        // everything is flushed out.
         unsafe {
-            {
-                let io = self.inner.io.lock();
-                match io.read {
-                    State::Pending(..) => {}
-                    _ => { return }
-                }
-            }
             self.inner.force_drop();
         }
     }

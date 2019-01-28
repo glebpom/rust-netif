@@ -1,11 +1,5 @@
-use bytes::{Bytes, BytesMut, IntoBuf};
-use futures::{Async, AsyncSink, Poll, Sink, StartSend, Stream};
 #[cfg(windows)]
-use impls::async::AsyncFile;
-use mio;
-use mio::event::Evented;
-#[cfg(unix)]
-use mio::unix::EventedFd;
+use impls::set_iface_status;
 use std::io;
 use std::io::{Read, Write};
 #[cfg(windows)]
@@ -13,9 +7,21 @@ use std::marker::PhantomData;
 #[cfg(unix)]
 use std::os::unix::prelude::*;
 #[cfg(windows)]
+use std::os::windows::io::AsRawHandle;
+#[cfg(windows)]
 use std::sync::{Arc, Mutex};
+
+use bytes::{Bytes, BytesMut, IntoBuf};
+use futures::{Async, AsyncSink, Poll, Sink, StartSend, Stream};
+use mio;
+use mio::event::Evented;
+#[cfg(unix)]
+use mio::unix::EventedFd;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::reactor::PollEvented2;
+
+#[cfg(windows)]
+use impls::async::AsyncFile;
 
 #[cfg(unix)]
 impl<C> Evented for EventedDescriptor<C>
@@ -61,6 +67,30 @@ pub struct EventedDescriptor<C: ::DescriptorCloser> {
     inner: AsyncFile,
     _closer: PhantomData<C>,
     info: Arc<Mutex<::VirtualInterfaceInfo>>,
+}
+
+#[cfg(windows)]
+impl<C> Drop for EventedDescriptor<C>
+where
+    C: ::DescriptorCloser,
+{
+    fn drop(&mut self) {
+        use std::process::Command;
+
+        eprintln!("Bring iface down");
+        let _ = set_iface_status(self.inner.as_raw_handle(), false);
+        let iface_name = self.info.lock().unwrap().name.clone();
+
+        let mut disable = Command::new("netsh");
+        disable.arg("interface").arg("set").arg("interface").arg(&iface_name).arg("admin=disable");
+        eprintln!("Executing command {:?}", disable);
+        eprintln!("Result: {:?}", disable.output());
+        disable.output().expect("Could not re-enable TAP iface: disable failed");
+        let mut enable = Command::new("netsh");
+        enable.arg("interface").arg("set").arg("interface").arg(&iface_name).arg("admin=enable");
+        eprintln!("Executing command {:?}", enable);
+        eprintln!("Result: {:?}", enable.output());
+    }
 }
 
 impl<C> EventedDescriptor<C>

@@ -31,7 +31,7 @@ macro_rules! CTL_CODE {
 
 pub struct OpenvpnTapDriver {}
 
-fn set_iface_status(handle: RawHandle, is_up: bool) -> Result<(), io::Error> {
+pub(crate) fn set_iface_status(handle: RawHandle, is_up: bool) -> Result<(), io::Error> {
     let mut rbuf = [0u8; MAXIMUM_REPARSE_DATA_BUFFER_SIZE as usize];
     let mut code = [0u8, 0u8, 0u8, 0u8];
     let mut bytes_returned = 0u32;
@@ -98,7 +98,7 @@ impl OpenvpnTapDriver {
 }
 
 impl OpenvpnTapDriver {
-    fn get_instance_id(req_component_id: &str) -> Result<Option<String>, TunTapError> {
+    pub fn get_instance_id(req_component_id: &str) -> Result<Option<String>, TunTapError> {
         let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
         let base_path = Path::new("SYSTEM")
             .join("CurrentControlSet")
@@ -131,7 +131,7 @@ impl OpenvpnTapDriver {
                     .read(true)
                     .write(true)
                     .append(false)
-                    .share_mode(0) //(FILE_SHARE_READ | FILE_SHARE_WRITE)
+                    .share_mode(0)
                     .attributes(FILE_ATTRIBUTE_SYSTEM | FILE_FLAG_OVERLAPPED)
                     .create(true)
                     .truncate(false)
@@ -190,7 +190,7 @@ impl OpenvpnTapDriver {
                 let adapters = ipconfig::get_adapters().map_err(|_| TunTapError::Other {
                     msg: "failed to get adapters list".to_owned(),
                 })?;
-                let maybe_adapter_name = adapters
+                let maybe_adapter = adapters
                     .iter()
                     .filter(|adapter| {
                         if let &Some(ref physical_address) = adapter.physical_address() {
@@ -202,7 +202,7 @@ impl OpenvpnTapDriver {
                     })
                     .next();
 
-                if let Some(adapter_info) = maybe_adapter_name {
+                if let Some(adapter_info) = maybe_adapter {
                     return Ok((file, adapter_info.friendly_name().clone()));
                 } else {
                     return Err(TunTapError::Other {

@@ -248,9 +248,7 @@ where
             incoming_rx
                 .for_each(|mut packet| {
                     println!("New incoming packet received");
-                    write_file.write_all(&mut packet).map_err(|e| {
-                        ()
-                    })
+                    write_file.write_all(&mut packet).map_err(|e| ())
                 })
                 .select(stop_writer_rx.then(|_| Ok(())))
                 .map_err(|_| ())

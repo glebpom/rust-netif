@@ -18,10 +18,7 @@ impl Native {
             iface_type: ::VirtualInterfaceType::Tun,
         }));
         Ok(::Virtualnterface {
-            queues: fds
-                .iter()
-                .map(|&fd| PollEvented2::new(::Descriptor::from_file(File::from_raw_fd(fd), &info).into()))
-                .collect(),
+            queues: fds.iter().map(|&fd| PollEvented2::new(::Descriptor::from_file(File::from_raw_fd(fd), &info).into())).collect(),
             info: Arc::downgrade(&info),
         })
     }
