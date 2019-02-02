@@ -6,13 +6,14 @@ use libc::EBUSY;
 use nix;
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
 use nix::sys::socket::{connect, getsockopt, socket, AddressFamily, GetSockOpt, SockAddr, SockFlag, SockProtocol, SockType};
+use parking_lot::Mutex;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::os::unix::io::FromRawFd;
 use std::os::unix::prelude::*;
 use std::path::Path;
 use std::str;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tokio::reactor::PollEvented2;
 use TunTapError;
 

@@ -40,13 +40,14 @@ pub use impls::*;
 use bytes::{Bytes, BytesMut};
 use futures::sync::{mpsc, oneshot};
 use futures::{Future, Sink, Stream};
+use parking_lot::Mutex;
 use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
 #[cfg(windows)]
 use std::os::windows::io::{FromRawHandle, IntoRawHandle};
 use std::string::ToString;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
 use std::thread;
 use std::time::Duration;
 
@@ -265,6 +266,6 @@ where
 
 impl<D> Virtualnterface<D> {
     pub fn info(&self) -> Option<VirtualInterfaceInfo> {
-        self.info.upgrade().map(|l| (*l.lock().unwrap()).clone())
+        self.info.upgrade().map(|l| (*l.lock()).clone())
     }
 }

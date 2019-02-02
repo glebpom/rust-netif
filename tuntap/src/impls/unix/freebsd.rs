@@ -5,13 +5,14 @@ use impls::unix::*;
 use libc::{c_char, c_int, dev_t, mode_t, IFF_BROADCAST, IFF_MULTICAST, S_IFCHR};
 use nix::sys::socket::{socket, AddressFamily, SockFlag, SockType};
 use nix::sys::stat::fstat;
-use std::ffi::CString;
+use parking_lot::Mutex;
+use std::ffi::{CStr, CString};
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::mem;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tokio::reactor::PollEvented2;
 use TunTapError;
 
@@ -105,9 +106,12 @@ fn get_viface_name(file: &File) -> Result<String, TunTapError> {
             msg: "interface not found".to_owned(),
         });
     }
-    unsafe { CString::from_raw(device_name) }.into_string().map_err(|_| TunTapError::BadData {
-        msg: "bad iface name returned from kernel".to_owned(),
-    })
+    Ok(unsafe { CStr::from_ptr(device_name) }
+        .to_str()
+        .map_err(|_| TunTapError::BadData {
+            msg: "bad iface name returned from kernel".to_owned(),
+        })?
+        .to_string())
 }
 
 impl Native {
@@ -150,7 +154,7 @@ impl Native {
 
 impl ::DescriptorCloser for Native {
     fn close_descriptor(d: &mut ::Descriptor<Native>) -> Result<(), TunTapError> {
-        let name = d.info.lock().unwrap().name.clone();
+        let name = d.info.lock().name.clone();
         //Close underlying file at first
         mem::drop(mem::replace(&mut d.inner, File::open("/dev/null")?));
 

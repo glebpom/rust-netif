@@ -1,6 +1,7 @@
 use crate::evented::EventedDescriptor;
 use bytes::BufMut;
 use ipconfig;
+use parking_lot::Mutex;
 use std::fs::{File, OpenOptions};
 use std::io;
 use std::io::Cursor;
@@ -9,7 +10,7 @@ use std::os::windows::fs::OpenOptionsExt;
 use std::os::windows::io::{AsRawHandle, RawHandle};
 use std::path::Path;
 use std::ptr;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tokio::reactor::PollEvented2;
 use winapi::ctypes::c_void;
 use winapi::um::handleapi::CloseHandle;

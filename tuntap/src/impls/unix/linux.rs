@@ -1,7 +1,8 @@
 use crate::evented::EventedDescriptor;
+use parking_lot::Mutex;
 use std::fs::File;
 use std::os::unix::prelude::*;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tokio::reactor::PollEvented2;
 use TunTapError;
 

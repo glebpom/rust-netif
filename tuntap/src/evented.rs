@@ -1,5 +1,7 @@
 #[cfg(windows)]
 use impls::set_iface_status;
+#[cfg(windows)]
+use parking_lot::Mutex;
 use std::io;
 use std::io::{Read, Write};
 #[cfg(windows)]
@@ -9,7 +11,7 @@ use std::os::unix::prelude::*;
 #[cfg(windows)]
 use std::os::windows::io::AsRawHandle;
 #[cfg(windows)]
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use bytes::{Bytes, BytesMut, IntoBuf};
 use futures::{Async, AsyncSink, Poll, Sink, StartSend, Stream};
@@ -79,7 +81,7 @@ where
 
         eprintln!("Bring iface down");
         let _ = set_iface_status(self.inner.as_raw_handle(), false);
-        let iface_name = self.info.lock().unwrap().name.clone();
+        let iface_name = self.info.lock().name.clone();
 
         let mut disable = Command::new("netsh");
         disable.arg("interface").arg("set").arg("interface").arg(&iface_name).arg("admin=disable");
