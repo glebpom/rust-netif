@@ -345,7 +345,8 @@ bitflags! {
 
         const RTF_RNH_LOCKED = 0x40000000;	/* radix node head is locked */
 
-        const RTF_GWFLAG_COMPAT = 0x80000000;	/* a compatibility bit for interacting
+        // 0x80000000 as libc::c_int (overflow)
+        const RTF_GWFLAG_COMPAT = -2147483648i32;	/* a compatibility bit for interacting
                        with existing routing apps */
     }
 }
