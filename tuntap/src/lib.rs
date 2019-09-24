@@ -51,8 +51,8 @@ use std::sync::{Arc, Weak};
 use std::thread;
 use std::time::Duration;
 
-const MTU: usize = 2000;
-const RESERVE_AT_ONCE: usize = 65536; //reserve large buffer once
+const MTU: usize = 32768;
+const RESERVE_AT_ONCE: usize = 2 * 1024 * 1024; //reserve large buffer once
 
 #[derive(Debug, Fail)]
 #[fail(display = "tuntap error")]
