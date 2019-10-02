@@ -174,6 +174,7 @@ impl<C> Read for Descriptor<C>
 where
     C: DescriptorCloser,
 {
+    #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
     }
@@ -184,10 +185,12 @@ impl<C> Write for Descriptor<C>
 where
     C: DescriptorCloser,
 {
+    #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.inner.write(buf)
     }
 
+    #[inline]
     fn flush(&mut self) -> io::Result<()> {
         self.inner.flush()
     }

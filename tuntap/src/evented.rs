@@ -143,6 +143,7 @@ impl<C> Read for EventedDescriptor<C>
 where
     C: ::DescriptorCloser,
 {
+    #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.io_mut().read(buf)
     }
@@ -201,6 +202,7 @@ where
     type Item = BytesMut;
     type Error = io::Error;
 
+    #[inline]
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         self.inner.read_buf(&mut self.outgoing).and_then(|res| {
             if let Async::Ready(n) = res {
@@ -225,6 +227,7 @@ where
     type SinkItem = Bytes;
     type SinkError = io::Error;
 
+    #[inline]
     fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, io::Error> {
         if self.incoming.is_some() {
             self.poll_complete()?;
@@ -237,6 +240,7 @@ where
         Ok(AsyncSink::Ready)
     }
 
+    #[inline]
     fn poll_complete(&mut self) -> Poll<(), io::Error> {
         let res = if let Some(ref mut buf) = self.incoming {
             self.inner.write_buf(buf).and_then(move |res| {

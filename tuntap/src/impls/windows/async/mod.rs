@@ -92,12 +92,14 @@ impl AsyncFile {
 }
 
 impl Read for AsyncFile {
+    #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         <&AsyncFile as Read>::read(&mut &*self, buf)
     }
 }
 
 impl Write for AsyncFile {
+    #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         <&AsyncFile as Write>::write(&mut &*self, buf)
     }
@@ -108,6 +110,7 @@ impl Write for AsyncFile {
 }
 
 impl<'a> Read for &'a AsyncFile {
+    #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         // Make sure we're registered
         if !self.registered() {
@@ -158,6 +161,7 @@ impl<'a> Read for &'a AsyncFile {
 }
 
 impl<'a> Write for &'a AsyncFile {
+    #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         // Make sure we're registered
         if !self.registered() {
@@ -185,6 +189,7 @@ impl<'a> Write for &'a AsyncFile {
 }
 
 impl Evented for AsyncFile {
+    #[inline]
     fn register(&self, poll: &Poll, token: Token, interest: Ready, opts: PollOpt) -> io::Result<()> {
         // First, register the handle with the event loop
         unsafe {
@@ -198,6 +203,7 @@ impl Evented for AsyncFile {
         Ok(())
     }
 
+    #[inline]
     fn reregister(&self, poll: &Poll, token: Token, interest: Ready, opts: PollOpt) -> io::Result<()> {
         // Validate `Poll` and that we were previously registered
         unsafe {
@@ -214,6 +220,7 @@ impl Evented for AsyncFile {
         Ok(())
     }
 
+    #[inline]
     fn deregister(&self, poll: &Poll) -> io::Result<()> {
         // Validate `Poll` and deregister ourselves
         unsafe {
@@ -224,6 +231,7 @@ impl Evented for AsyncFile {
 }
 
 impl AsRawHandle for AsyncFile {
+    #[inline]
     fn as_raw_handle(&self) -> RawHandle {
         self.inner.handle.as_raw_handle()
     }
