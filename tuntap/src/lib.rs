@@ -4,12 +4,15 @@
 #[macro_use]
 extern crate bitflags;
 extern crate bytes;
+#[macro_use]
 extern crate futures;
-extern crate mio;
 extern crate parking_lot;
 extern crate tokio;
+extern crate tokio_reactor;
 #[macro_use]
 extern crate failure;
+extern crate mio;
+extern crate tokio_io;
 
 #[cfg(unix)]
 extern crate ifstructs;
@@ -33,9 +36,11 @@ extern crate winreg;
 
 mod evented;
 mod impls;
+mod poll_evented;
 
 pub use evented::EventedDescriptor;
 pub use impls::*;
+pub use poll_evented::PollEvented;
 
 use bytes::{Bytes, BytesMut};
 use futures::sync::{mpsc, oneshot};
@@ -51,8 +56,8 @@ use std::sync::{Arc, Weak};
 use std::thread;
 use std::time::Duration;
 
-const MTU: usize = 32768;
-const RESERVE_AT_ONCE: usize = 2 * 1024 * 1024; //reserve large buffer once
+const MTU: usize = 65536;
+const RESERVE_AT_ONCE: usize = 128 * MTU; //reserve large buffer once
 
 #[derive(Debug, Fail)]
 #[fail(display = "tuntap error")]
@@ -210,7 +215,12 @@ where
     }
 
     #[cfg(not(windows))]
-    pub fn pop_split_channels(&mut self) -> Option<(impl Sink<SinkItem = Bytes, SinkError = io::Error>, impl Stream<Item = BytesMut, Error = io::Error>)> {
+    pub fn pop_split_channels(
+        &mut self,
+    ) -> Option<(
+        impl Sink<SinkItem = Bytes, SinkError = io::Error>,
+        impl Stream<Item = BytesMut, Error = io::Error>,
+    )> {
         let mut write_file = self.pop_file()?;
         let mut read_file = write_file.try_clone().unwrap();
 
@@ -261,7 +271,9 @@ where
         });
 
         Some((
-            Box::new(incoming_tx.sink_map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error"))),
+            Box::new(
+                incoming_tx.sink_map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error")),
+            ),
             Box::new(outgoing_rx.map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error"))),
         ))
     }

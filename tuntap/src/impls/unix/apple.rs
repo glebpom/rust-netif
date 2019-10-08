@@ -1,11 +1,15 @@
 use crate::evented::EventedDescriptor;
+use crate::poll_evented::PollEvented;
 use ifcontrol::Iface;
 use impls::unix::*;
 use libc;
 use libc::EBUSY;
 use nix;
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
-use nix::sys::socket::{connect, getsockopt, socket, AddressFamily, GetSockOpt, SockAddr, SockFlag, SockProtocol, SockType};
+use nix::sys::socket::{
+    connect, getsockopt, socket, AddressFamily, GetSockOpt, SockAddr, SockFlag, SockProtocol,
+    SockType,
+};
 use parking_lot::Mutex;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -14,7 +18,6 @@ use std::os::unix::prelude::*;
 use std::path::Path;
 use std::str;
 use std::sync::Arc;
-use tokio::reactor::PollEvented2;
 use TunTapError;
 
 #[derive(Copy, Clone)]
@@ -30,7 +33,13 @@ impl GetSockOpt for UtunCreatedIfaceName {
             let mut buf: [u8; libc::IFNAMSIZ] = [0; libc::IFNAMSIZ];
             let mut len = buf.len() as u32;
 
-            let res = libc::getsockopt(fd, libc::SYSPROTO_CONTROL, libc::UTUN_OPT_IFNAME, buf.as_mut_ptr() as *mut libc::c_void, &mut len);
+            let res = libc::getsockopt(
+                fd,
+                libc::SYSPROTO_CONTROL,
+                libc::UTUN_OPT_IFNAME,
+                buf.as_mut_ptr() as *mut libc::c_void,
+                &mut len,
+            );
 
             if res != 0 {
                 return Err(nix::Error::last());
@@ -48,24 +57,40 @@ impl Native {
         Native {}
     }
 
-    pub unsafe fn tun_async_from_fds(&self, ifname: &str, fds: &[RawFd]) -> Result<::Virtualnterface<PollEvented2<EventedDescriptor<Native>>>, TunTapError> {
+    pub unsafe fn tun_async_from_fds(
+        &self,
+        ifname: &str,
+        fds: &[RawFd],
+    ) -> Result<::Virtualnterface<PollEvented<EventedDescriptor<Native>>>, TunTapError> {
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name: ifname.to_owned(),
             iface_type: ::VirtualInterfaceType::Tun,
         }));
         Ok(::Virtualnterface {
-            queues: fds.iter().map(|&fd| PollEvented2::new(::Descriptor::from_file(File::from_raw_fd(fd), &info).into())).collect(),
+            queues: fds
+                .iter()
+                .map(|&fd| {
+                    PollEvented::new(::Descriptor::from_file(File::from_raw_fd(fd), &info).into())
+                })
+                .collect(),
             info: Arc::downgrade(&info),
         })
     }
 
-    pub unsafe fn tun_from_fds(&self, ifname: &str, fds: &[RawFd]) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
+    pub unsafe fn tun_from_fds(
+        &self,
+        ifname: &str,
+        fds: &[RawFd],
+    ) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name: ifname.to_owned(),
             iface_type: ::VirtualInterfaceType::Tun,
         }));
         Ok(::Virtualnterface {
-            queues: fds.iter().map(|&fd| ::Descriptor::from_file(File::from_raw_fd(fd), &info)).collect(),
+            queues: fds
+                .iter()
+                .map(|&fd| ::Descriptor::from_file(File::from_raw_fd(fd), &info))
+                .collect(),
             info: Arc::downgrade(&info),
         })
     }
@@ -80,7 +105,10 @@ impl Default for Native {
 // UTUN native OSX interface support
 #[cfg(target_os = "macos")]
 impl Native {
-    pub fn create_tun(&self, unit: u32) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
+    pub fn create_tun(
+        &self,
+        unit: u32,
+    ) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
         let (fd, name) = self.create_tun_inner(unit, false)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name: name.clone(),
@@ -88,25 +116,38 @@ impl Native {
         }));
 
         Ok(::Virtualnterface {
-            queues: vec![::Descriptor::from_file(unsafe { File::from_raw_fd(fd) }, &info)],
+            queues: vec![::Descriptor::from_file(
+                unsafe { File::from_raw_fd(fd) },
+                &info,
+            )],
             info: Arc::downgrade(&info),
         })
     }
 
-    pub fn create_tun_async(&self, unit: u32) -> Result<::Virtualnterface<PollEvented2<EventedDescriptor<Native>>>, TunTapError> {
+    pub fn create_tun_async(
+        &self,
+        unit: u32,
+    ) -> Result<::Virtualnterface<PollEvented<EventedDescriptor<Native>>>, TunTapError> {
         let (fd, name) = self.create_tun_inner(unit, true)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
             iface_type: ::VirtualInterfaceType::Tun,
         }));
         Ok(::Virtualnterface {
-            queues: vec![PollEvented2::new(::Descriptor::from_file(unsafe { File::from_raw_fd(fd) }, &info).into())],
+            queues: vec![PollEvented::new(
+                ::Descriptor::from_file(unsafe { File::from_raw_fd(fd) }, &info).into(),
+            )],
             info: Arc::downgrade(&info),
         })
     }
 
     fn create_tun_inner(&self, unit: u32, is_async: bool) -> Result<(RawFd, String), TunTapError> {
-        let fd: RawFd = socket(AddressFamily::System, SockType::Datagram, SockFlag::empty(), SockProtocol::KextControl)?;
+        let fd: RawFd = socket(
+            AddressFamily::System,
+            SockType::Datagram,
+            SockFlag::empty(),
+            SockProtocol::KextControl,
+        )?;
 
         let addr = SockAddr::new_sys_control(fd, "com.apple.net.utun_control", unit)?;
         //TODO: close fd if error ?
@@ -168,7 +209,10 @@ impl Default for TunTapOsx {
 macro_rules! probe {
     ($iface_type:expr) => {
         match $iface_type {
-            Some(DevPath { ref dev_name, max_num: _ }) => {
+            Some(DevPath {
+                ref dev_name,
+                max_num: _,
+            }) => {
                 let path_str = format!("/dev/{}0", dev_name);
                 let path = Path::new(&path_str);
                 return path.exists();
@@ -182,7 +226,10 @@ macro_rules! probe {
 macro_rules! create_descriptor {
     ($iface_type:expr, $virtual_iface_type:expr, $iface_name:expr, $dev_idx:expr) => {
         match $iface_type {
-            Some(DevPath { ref dev_name, max_num }) => {
+            Some(DevPath {
+                ref dev_name,
+                max_num,
+            }) => {
                 let (f, name) = if let Some(idx) = $dev_idx {
                     if let Some(r) = TunTapOsx::try_create_by_idx(&dev_name, idx) {
                         r?
@@ -221,15 +268,24 @@ impl TunTapOsx {
         probe!(self.tap)
     }
 
-    pub fn create_tun(&self, dev_idx: Option<usize>) -> Result<::Virtualnterface<::Descriptor<TunTapOsx>>, TunTapError> {
+    pub fn create_tun(
+        &self,
+        dev_idx: Option<usize>,
+    ) -> Result<::Virtualnterface<::Descriptor<TunTapOsx>>, TunTapError> {
         create_descriptor!(self.tun, ::VirtualInterfaceType::Tun, tun, dev_idx)
     }
 
-    pub fn create_tap(&self, dev_idx: Option<usize>) -> Result<::Virtualnterface<::Descriptor<TunTapOsx>>, TunTapError> {
+    pub fn create_tap(
+        &self,
+        dev_idx: Option<usize>,
+    ) -> Result<::Virtualnterface<::Descriptor<TunTapOsx>>, TunTapError> {
         create_descriptor!(self.tap, ::VirtualInterfaceType::Tap, tap, dev_idx)
     }
 
-    fn try_create_by_idx(dev_name: &str, dev_idx: usize) -> Option<Result<(File, String), TunTapError>> {
+    fn try_create_by_idx(
+        dev_name: &str,
+        dev_idx: usize,
+    ) -> Option<Result<(File, String), TunTapError>> {
         let path_str = format!("/dev/{}{}", dev_name, dev_idx);
         let path = Path::new(&path_str);
         if !path.exists() {
@@ -267,7 +323,10 @@ impl TunTapOsx {
         }
     }
 
-    fn create_tun_tap_driver(dev_name: &str, max_num: usize) -> Result<(File, String), TunTapError> {
+    fn create_tun_tap_driver(
+        dev_name: &str,
+        max_num: usize,
+    ) -> Result<(File, String), TunTapError> {
         for i in 0..max_num {
             if let Some(res) = Self::try_create_by_idx(dev_name, i) {
                 return res;

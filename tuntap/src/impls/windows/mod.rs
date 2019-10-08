@@ -1,4 +1,5 @@
 use crate::evented::EventedDescriptor;
+use crate::poll_evented::PollEvented;
 use bytes::BufMut;
 use ipconfig;
 use parking_lot::Mutex;
@@ -11,13 +12,14 @@ use std::os::windows::io::{AsRawHandle, RawHandle};
 use std::path::Path;
 use std::ptr;
 use std::sync::Arc;
-use tokio::reactor::PollEvented2;
 use winapi::ctypes::c_void;
 use winapi::um::handleapi::CloseHandle;
 use winapi::um::ioapiset::DeviceIoControl;
 use winapi::um::winbase::FILE_FLAG_OVERLAPPED;
 use winapi::um::winioctl::FILE_DEVICE_UNKNOWN;
-use winapi::um::winnt::{FILE_ATTRIBUTE_SYSTEM, FILE_SHARE_READ, FILE_SHARE_WRITE, MAXIMUM_REPARSE_DATA_BUFFER_SIZE};
+use winapi::um::winnt::{
+    FILE_ATTRIBUTE_SYSTEM, FILE_SHARE_READ, FILE_SHARE_WRITE, MAXIMUM_REPARSE_DATA_BUFFER_SIZE,
+};
 use winreg::enums::*;
 use winreg::RegKey;
 use TunTapError;
@@ -69,7 +71,14 @@ impl OpenvpnTapDriver {
         OpenvpnTapDriver {}
     }
 
-    pub fn open_tun_async(&self, device_id: &str, ip: Ipv4Addr, network: Ipv4Addr, netmask: Ipv4Addr) -> Result<::Virtualnterface<PollEvented2<EventedDescriptor<OpenvpnTapDriver>>>, TunTapError> {
+    pub fn open_tun_async(
+        &self,
+        device_id: &str,
+        ip: Ipv4Addr,
+        network: Ipv4Addr,
+        netmask: Ipv4Addr,
+    ) -> Result<::Virtualnterface<PollEvented<EventedDescriptor<OpenvpnTapDriver>>>, TunTapError>
+    {
         let (file, name) = OpenvpnTapDriver::open_dev(device_id, Some((ip, network, netmask)))?;
 
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
@@ -78,12 +87,18 @@ impl OpenvpnTapDriver {
         }));
 
         Ok(::Virtualnterface {
-            queues: vec![PollEvented2::new(::Descriptor::from_file(file, &info).into())],
+            queues: vec![PollEvented::new(
+                ::Descriptor::from_file(file, &info).into(),
+            )],
             info: Arc::downgrade(&info),
         })
     }
 
-    pub fn open_tap_async(&self, device_id: &str) -> Result<::Virtualnterface<PollEvented2<EventedDescriptor<OpenvpnTapDriver>>>, TunTapError> {
+    pub fn open_tap_async(
+        &self,
+        device_id: &str,
+    ) -> Result<::Virtualnterface<PollEvented<EventedDescriptor<OpenvpnTapDriver>>>, TunTapError>
+    {
         let (file, name) = OpenvpnTapDriver::open_dev(device_id, None)?;
 
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
@@ -92,7 +107,9 @@ impl OpenvpnTapDriver {
         }));
 
         Ok(::Virtualnterface {
-            queues: vec![PollEvented2::new(::Descriptor::from_file(file, &info).into())],
+            queues: vec![PollEvented::new(
+                ::Descriptor::from_file(file, &info).into(),
+            )],
             info: Arc::downgrade(&info),
         })
     }
@@ -119,7 +136,10 @@ impl OpenvpnTapDriver {
         Ok(None)
     }
 
-    fn open_dev(device_id: &str, tun_args: Option<(Ipv4Addr, Ipv4Addr, Ipv4Addr)>) -> Result<(File, String), TunTapError> {
+    fn open_dev(
+        device_id: &str,
+        tun_args: Option<(Ipv4Addr, Ipv4Addr, Ipv4Addr)>,
+    ) -> Result<(File, String), TunTapError> {
         match OpenvpnTapDriver::get_instance_id(device_id)? {
             None => {
                 return Err(TunTapError::DriverNotFound {

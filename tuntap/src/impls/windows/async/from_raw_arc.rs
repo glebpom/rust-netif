@@ -38,15 +38,22 @@ struct Inner<T> {
 
 impl<T> FromRawArc<T> {
     pub fn new(data: T) -> FromRawArc<T> {
-        let x = Box::new(Inner { data: data, cnt: AtomicUsize::new(1) });
-        FromRawArc { _inner: unsafe { mem::transmute(x) } }
+        let x = Box::new(Inner {
+            data: data,
+            cnt: AtomicUsize::new(1),
+        });
+        FromRawArc {
+            _inner: unsafe { mem::transmute(x) },
+        }
     }
 
     pub unsafe fn from_raw(ptr: *mut T) -> FromRawArc<T> {
         // Note that if we could use `mem::transmute` here to get a libstd Arc
         // (guaranteed) then we could just use std::sync::Arc, but this is the
         // crucial reason this currently exists.
-        FromRawArc { _inner: ptr as *mut Inner<T> }
+        FromRawArc {
+            _inner: ptr as *mut Inner<T>,
+        }
     }
 
     pub unsafe fn force_drop(&mut self) {
@@ -63,7 +70,9 @@ impl<T> Clone for FromRawArc<T> {
         unsafe {
             (*self._inner).cnt.fetch_add(1, Ordering::Relaxed);
         }
-        FromRawArc { _inner: self._inner }
+        FromRawArc {
+            _inner: self._inner,
+        }
     }
 }
 

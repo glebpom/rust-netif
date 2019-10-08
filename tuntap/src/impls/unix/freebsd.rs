@@ -1,4 +1,5 @@
 use crate::evented::EventedDescriptor;
+use crate::poll_evented::PollEvented;
 use ifcontrol::Iface;
 use ifstructs::ifreq;
 use impls::unix::*;
@@ -13,7 +14,6 @@ use std::mem;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::reactor::PollEvented2;
 use TunTapError;
 
 pub struct Native {}
@@ -54,7 +54,9 @@ impl Native {
         })
     }
 
-    pub fn create_tun_async(&self) -> Result<::Virtualnterface<PollEvented2<EventedDescriptor<Native>>>, TunTapError> {
+    pub fn create_tun_async(
+        &self,
+    ) -> Result<::Virtualnterface<PollEvented<EventedDescriptor<Native>>>, TunTapError> {
         let (file, name) = self.create(::VirtualInterfaceType::Tun, true)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
@@ -62,19 +64,25 @@ impl Native {
         }));
 
         Ok(::Virtualnterface {
-            queues: vec![PollEvented2::new(::Descriptor::from_file(file, &info).into())],
+            queues: vec![PollEvented::new(
+                ::Descriptor::from_file(file, &info).into(),
+            )],
             info: Arc::downgrade(&info),
         })
     }
 
-    pub fn create_tap_async(&self) -> Result<::Virtualnterface<PollEvented2<EventedDescriptor<Native>>>, TunTapError> {
+    pub fn create_tap_async(
+        &self,
+    ) -> Result<::Virtualnterface<PollEvented<EventedDescriptor<Native>>>, TunTapError> {
         let (file, name) = self.create(::VirtualInterfaceType::Tap, true)?;
         let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
             name,
             iface_type: ::VirtualInterfaceType::Tun,
         }));
         Ok(::Virtualnterface {
-            queues: vec![PollEvented2::new(::Descriptor::from_file(file, &info).into())],
+            queues: vec![PollEvented::new(
+                ::Descriptor::from_file(file, &info).into(),
+            )],
             info: Arc::downgrade(&info),
         })
     }
@@ -115,11 +123,18 @@ fn get_viface_name(file: &File) -> Result<String, TunTapError> {
 }
 
 impl Native {
-    fn create(&self, iface_type: ::VirtualInterfaceType, is_async: bool) -> Result<(File, String), TunTapError> {
+    fn create(
+        &self,
+        iface_type: ::VirtualInterfaceType,
+        is_async: bool,
+    ) -> Result<(File, String), TunTapError> {
         let mut clone_from_path = PathBuf::from("/dev");
         clone_from_path.push(iface_type.to_string());
 
-        let file = OpenOptions::new().read(true).write(true).open(&clone_from_path)?;
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&clone_from_path)?;
 
         let name = get_viface_name(&file)?;
         let mut path = PathBuf::from("/dev");
@@ -160,7 +175,12 @@ impl ::DescriptorCloser for Native {
 
         let mut req = ifreq::from_name(&name)?;
 
-        let ctl_fd: RawFd = socket(AddressFamily::Inet, SockType::Stream, SockFlag::empty(), None)?;
+        let ctl_fd: RawFd = socket(
+            AddressFamily::Inet,
+            SockType::Stream,
+            SockFlag::empty(),
+            None,
+        )?;
 
         unsafe { ioctl_iface_destroy(ctl_fd, &mut req) }?;
 

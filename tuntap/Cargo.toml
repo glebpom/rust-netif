@@ -12,11 +12,12 @@ A Rust library to manipulate TUN/TAP interfaces on *nix and Windows systems
 """
 
 [dependencies]
-mio = "0.6.15"
-tokio = "0.1.7"
+mio = "0.6.19"
+tokio = "0.1.22"
+tokio-reactor = "0.1.10"
+tokio-io = "0.1.12"
 futures = "0.1.23"
 bytes = "0.4"
-tokio-io = "0.1.7"
 failure = "0.1.2"
 ifcontrol = {path = "../ifcontrol"}
 bitflags = "1.0.3"

@@ -39,21 +39,49 @@ impl Handle {
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
         let mut bytes = 0;
         let len = cmp::min(buf.len(), <DWORD>::max_value() as usize) as DWORD;
-        try!(cvt(unsafe { WriteFile(self.0, buf.as_ptr() as *const _, len, &mut bytes, 0 as *mut _) }));
+        try!(cvt(unsafe {
+            WriteFile(
+                self.0,
+                buf.as_ptr() as *const _,
+                len,
+                &mut bytes,
+                0 as *mut _,
+            )
+        }));
         Ok(bytes as usize)
     }
 
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
         let mut bytes = 0;
         let len = cmp::min(buf.len(), <DWORD>::max_value() as usize) as DWORD;
-        try!(cvt(unsafe { ReadFile(self.0, buf.as_mut_ptr() as *mut _, len, &mut bytes, 0 as *mut _) }));
+        try!(cvt(unsafe {
+            ReadFile(
+                self.0,
+                buf.as_mut_ptr() as *mut _,
+                len,
+                &mut bytes,
+                0 as *mut _,
+            )
+        }));
         Ok(bytes as usize)
     }
 
-    pub unsafe fn read_overlapped(&self, buf: &mut [u8], overlapped: *mut OVERLAPPED) -> io::Result<Option<usize>> {
+    pub unsafe fn read_overlapped(
+        &self,
+        buf: &mut [u8],
+        overlapped: *mut OVERLAPPED,
+    ) -> io::Result<Option<usize>> {
         let len = cmp::min(buf.len(), <DWORD>::max_value() as usize) as DWORD;
         let mut bytes = 0;
-        let res = cvt({ ReadFile(self.0, buf.as_mut_ptr() as *mut _, len, &mut bytes, overlapped) });
+        let res = cvt({
+            ReadFile(
+                self.0,
+                buf.as_mut_ptr() as *mut _,
+                len,
+                &mut bytes,
+                overlapped,
+            )
+        });
         match res {
             Ok(_) => Ok(Some(bytes as usize)),
             Err(ref e) if e.raw_os_error() == Some(ERROR_IO_PENDING as i32) => Ok(None),
@@ -61,10 +89,22 @@ impl Handle {
         }
     }
 
-    pub unsafe fn write_overlapped(&self, buf: &[u8], overlapped: *mut OVERLAPPED) -> io::Result<Option<usize>> {
+    pub unsafe fn write_overlapped(
+        &self,
+        buf: &[u8],
+        overlapped: *mut OVERLAPPED,
+    ) -> io::Result<Option<usize>> {
         let len = cmp::min(buf.len(), <DWORD>::max_value() as usize) as DWORD;
         let mut bytes = 0;
-        let res = cvt({ WriteFile(self.0, buf.as_ptr() as *const _, len, &mut bytes, overlapped) });
+        let res = cvt({
+            WriteFile(
+                self.0,
+                buf.as_ptr() as *const _,
+                len,
+                &mut bytes,
+                overlapped,
+            )
+        });
         match res {
             Ok(_) => Ok(Some(bytes as usize)),
             Err(ref e) if e.raw_os_error() == Some(ERROR_IO_PENDING as i32) => Ok(None),

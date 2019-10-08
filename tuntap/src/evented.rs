@@ -13,6 +13,7 @@ use std::os::windows::io::AsRawHandle;
 #[cfg(windows)]
 use std::sync::Arc;
 
+use crate::poll_evented::PollEvented;
 use bytes::{Bytes, BytesMut, IntoBuf};
 use futures::{Async, AsyncSink, Poll, Sink, StartSend, Stream};
 use mio;
@@ -20,7 +21,6 @@ use mio::event::Evented;
 #[cfg(unix)]
 use mio::unix::EventedFd;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::reactor::PollEvented2;
 
 #[cfg(windows)]
 use impls::async::AsyncFile;
@@ -30,11 +30,23 @@ impl<C> Evented for EventedDescriptor<C>
 where
     C: ::DescriptorCloser,
 {
-    fn register(&self, poll: &mio::Poll, token: mio::Token, interest: mio::Ready, opts: mio::PollOpt) -> io::Result<()> {
+    fn register(
+        &self,
+        poll: &mio::Poll,
+        token: mio::Token,
+        interest: mio::Ready,
+        opts: mio::PollOpt,
+    ) -> io::Result<()> {
         EventedFd(&self.io().as_raw_fd()).register(poll, token, interest, opts)
     }
 
-    fn reregister(&self, poll: &mio::Poll, token: mio::Token, interest: mio::Ready, opts: mio::PollOpt) -> io::Result<()> {
+    fn reregister(
+        &self,
+        poll: &mio::Poll,
+        token: mio::Token,
+        interest: mio::Ready,
+        opts: mio::PollOpt,
+    ) -> io::Result<()> {
         EventedFd(&self.io().as_raw_fd()).reregister(poll, token, interest, opts)
     }
 
@@ -48,11 +60,23 @@ impl<C> Evented for EventedDescriptor<C>
 where
     C: ::DescriptorCloser,
 {
-    fn register(&self, poll: &mio::Poll, token: mio::Token, interest: mio::Ready, opts: mio::PollOpt) -> io::Result<()> {
+    fn register(
+        &self,
+        poll: &mio::Poll,
+        token: mio::Token,
+        interest: mio::Ready,
+        opts: mio::PollOpt,
+    ) -> io::Result<()> {
         self.inner.register(poll, token, interest, opts)
     }
 
-    fn reregister(&self, poll: &mio::Poll, token: mio::Token, interest: mio::Ready, opts: mio::PollOpt) -> io::Result<()> {
+    fn reregister(
+        &self,
+        poll: &mio::Poll,
+        token: mio::Token,
+        interest: mio::Ready,
+        opts: mio::PollOpt,
+    ) -> io::Result<()> {
         self.inner.reregister(poll, token, interest, opts)
     }
 
@@ -84,12 +108,24 @@ where
         let iface_name = self.info.lock().name.clone();
 
         let mut disable = Command::new("netsh");
-        disable.arg("interface").arg("set").arg("interface").arg(&iface_name).arg("admin=disable");
+        disable
+            .arg("interface")
+            .arg("set")
+            .arg("interface")
+            .arg(&iface_name)
+            .arg("admin=disable");
         eprintln!("Executing command {:?}", disable);
         eprintln!("Result: {:?}", disable.output());
-        disable.output().expect("Could not re-enable TAP iface: disable failed");
+        disable
+            .output()
+            .expect("Could not re-enable TAP iface: disable failed");
         let mut enable = Command::new("netsh");
-        enable.arg("interface").arg("set").arg("interface").arg(&iface_name).arg("admin=enable");
+        enable
+            .arg("interface")
+            .arg("set")
+            .arg("interface")
+            .arg(&iface_name)
+            .arg("admin=enable");
         eprintln!("Executing command {:?}", enable);
         eprintln!("Result: {:?}", enable.output());
     }
@@ -162,7 +198,10 @@ where
     }
 }
 
-impl<C> AsyncRead for EventedDescriptor<C> where C: ::DescriptorCloser {
+impl<C> AsyncRead for EventedDescriptor<C>
+where
+    C: ::DescriptorCloser,
+{
     unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [u8]) -> bool {
         true
     }
@@ -181,16 +220,16 @@ pub struct AsyncDescriptor<C>
 where
     C: ::DescriptorCloser,
 {
-    inner: PollEvented2<EventedDescriptor<C>>,
+    inner: PollEvented<EventedDescriptor<C>>,
     incoming: Option<io::Cursor<Bytes>>,
     outgoing: BytesMut,
 }
 
-impl<C> From<PollEvented2<EventedDescriptor<C>>> for AsyncDescriptor<C>
+impl<C> From<PollEvented<EventedDescriptor<C>>> for AsyncDescriptor<C>
 where
     C: ::DescriptorCloser,
 {
-    fn from(f: PollEvented2<EventedDescriptor<C>>) -> AsyncDescriptor<C> {
+    fn from(f: PollEvented<EventedDescriptor<C>>) -> AsyncDescriptor<C> {
         AsyncDescriptor {
             inner: f,
             incoming: None,
@@ -254,7 +293,10 @@ where
                     } else if n == buf.get_ref().len() {
                         Ok(Async::Ready(()))
                     } else {
-                        Err(io::Error::new(io::ErrorKind::Other, "Failed to send whole datagram"))
+                        Err(io::Error::new(
+                            io::ErrorKind::Other,
+                            "Failed to send whole datagram",
+                        ))
                     }
                 } else {
                     Ok(Async::NotReady)
@@ -274,11 +316,16 @@ where
     }
 }
 
-impl<C> ::Virtualnterface<PollEvented2<EventedDescriptor<C>>>
+impl<C> ::Virtualnterface<PollEvented<EventedDescriptor<C>>>
 where
     C: ::DescriptorCloser,
 {
-    pub fn pop_split_channels(&mut self) -> Option<(impl Sink<SinkItem = Bytes, SinkError = io::Error>, impl Stream<Item = BytesMut, Error = io::Error>)> {
+    pub fn pop_split_channels(
+        &mut self,
+    ) -> Option<(
+        impl Sink<SinkItem = Bytes, SinkError = io::Error>,
+        impl Stream<Item = BytesMut, Error = io::Error>,
+    )> {
         if let Some(q) = self.queues.pop() {
             Some(AsyncDescriptor::from(q).split())
         } else {

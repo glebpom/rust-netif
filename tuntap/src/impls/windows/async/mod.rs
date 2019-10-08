@@ -190,12 +190,20 @@ impl<'a> Write for &'a AsyncFile {
 
 impl Evented for AsyncFile {
     #[inline]
-    fn register(&self, poll: &Poll, token: Token, interest: Ready, opts: PollOpt) -> io::Result<()> {
+    fn register(
+        &self,
+        poll: &Poll,
+        token: Token,
+        interest: Ready,
+        opts: PollOpt,
+    ) -> io::Result<()> {
         // First, register the handle with the event loop
         unsafe {
             let mut info: BY_HANDLE_FILE_INFORMATION = mem::zeroed();
 
-            try!(self.poll_registration.register_handle(&self.inner.handle, token, poll));
+            try!(self
+                .poll_registration
+                .register_handle(&self.inner.handle, token, poll));
         }
         try!(poll.register(&self.ready_registration, token, interest, opts));
         self.registered.store(true, SeqCst);
@@ -204,10 +212,18 @@ impl Evented for AsyncFile {
     }
 
     #[inline]
-    fn reregister(&self, poll: &Poll, token: Token, interest: Ready, opts: PollOpt) -> io::Result<()> {
+    fn reregister(
+        &self,
+        poll: &Poll,
+        token: Token,
+        interest: Ready,
+        opts: PollOpt,
+    ) -> io::Result<()> {
         // Validate `Poll` and that we were previously registered
         unsafe {
-            try!(self.poll_registration.reregister_handle(&self.inner.handle, token, poll));
+            try!(self
+                .poll_registration
+                .reregister_handle(&self.inner.handle, token, poll));
         }
 
         // At this point we should for sure have `ready_registration` unless
@@ -224,7 +240,9 @@ impl Evented for AsyncFile {
     fn deregister(&self, poll: &Poll) -> io::Result<()> {
         // Validate `Poll` and deregister ourselves
         unsafe {
-            try!(self.poll_registration.deregister_handle(&self.inner.handle, poll));
+            try!(self
+                .poll_registration
+                .deregister_handle(&self.inner.handle, poll));
         }
         poll.deregister(&self.ready_registration)
     }
@@ -320,7 +338,9 @@ impl Inner {
 
         // Turn off our read readiness
         let ready = me.readiness.readiness();
-        me.readiness.set_readiness(ready & !Ready::readable()).expect("event loop seems gone");
+        me.readiness
+            .set_readiness(ready & !Ready::readable())
+            .expect("event loop seems gone");
 
         // Allocate a buffer and schedule the read.
         //
@@ -344,7 +364,9 @@ impl Inner {
             // out the error.
             Err(e) => {
                 io.read = State::Err(e);
-                me.readiness.set_readiness(ready | Ready::readable()).expect("event loop still seems gone");
+                me.readiness
+                    .set_readiness(ready | Ready::readable())
+                    .expect("event loop still seems gone");
                 true
             }
         }
@@ -353,7 +375,9 @@ impl Inner {
     fn schedule_write(me: &FromRawArc<Inner>, buf: Vec<u8>, pos: usize, io: &mut Io) {
         // Very similar to `schedule_read` above, just done for the write half.
         let ready = me.readiness.readiness();
-        me.readiness.set_readiness(ready & !Ready::writable()).expect("event loop seems gone");
+        me.readiness
+            .set_readiness(ready & !Ready::writable())
+            .expect("event loop seems gone");
 
         let e = unsafe {
             let overlapped = me.write.as_mut_ptr() as *mut _;
@@ -374,7 +398,9 @@ impl Inner {
     }
 
     fn add_readiness(&self, ready: Ready) {
-        self.readiness.set_readiness(ready | self.readiness.readiness()).expect("event loop still seems gone");
+        self.readiness
+            .set_readiness(ready | self.readiness.readiness())
+            .expect("event loop still seems gone");
     }
 
     fn post_register(me: &FromRawArc<Inner>) {

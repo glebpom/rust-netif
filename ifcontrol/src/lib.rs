@@ -90,10 +90,22 @@ impl Iface {
 
         let mut ifaces = Vec::new();
         for (ifname, flags) in flags {
-            let ip_addrs = ips.get(&ifname).cloned().unwrap_or_default().iter().map(|inet_addr| inet_addr.to_std().ip()).collect();
+            let ip_addrs = ips
+                .get(&ifname)
+                .cloned()
+                .unwrap_or_default()
+                .iter()
+                .map(|inet_addr| inet_addr.to_std().ip())
+                .collect();
             let hw_addr = hw
                 .get(&ifname)
-                .and_then(|hw| if hw.addr() == [0, 0, 0, 0, 0, 0] { None } else { Some(hw) })
+                .and_then(|hw| {
+                    if hw.addr() == [0, 0, 0, 0, 0, 0] {
+                        None
+                    } else {
+                        Some(hw)
+                    }
+                })
                 .map(|addr| MacAddress::new(addr.addr()));
             let link = if flags.contains(IfFlags::IFF_LOOPBACK) {
                 Link::Loopback
@@ -121,7 +133,10 @@ impl Iface {
 
     #[cfg(all(unix, not(target_os = "android")))]
     pub fn find_by_name(ifname: &str) -> Result<Iface, IfError> {
-        let iface = Self::all()?.into_iter().find(|x| x.ifname == ifname).ok_or(IfError::NotFound)?;
+        let iface = Self::all()?
+            .into_iter()
+            .find(|x| x.ifname == ifname)
+            .ok_or(IfError::NotFound)?;
         let ctl_fd = impls::new_control_socket()?;
         impls::get_iface_ifreq(&ctl_fd, &iface.ifname)?;
         Ok(iface)
@@ -176,7 +191,13 @@ impl Iface {
     pub fn add_addr(&mut self, cidr: ipnetwork::IpNetwork) -> Result<(), IfError> {
         let ctl_fd = impls::new_control_socket()?;
 
-        impls::add_addr_to_iface(&ctl_fd, &self.ifname, cidr.ip(), cidr.mask(), cidr.broadcast())?;
+        impls::add_addr_to_iface(
+            &ctl_fd,
+            &self.ifname,
+            cidr.ip(),
+            cidr.mask(),
+            cidr.broadcast(),
+        )?;
 
         self.refresh()?;
 
@@ -225,7 +246,10 @@ impl Iface {
         Ok(drv.driver == "tun" && drv.bus_info == "tap")
     }
 
-    pub fn bind_to_device<S: std::os::unix::io::AsRawFd>(&mut self, socket: &S) -> Result<(), IfError> {
+    pub fn bind_to_device<S: std::os::unix::io::AsRawFd>(
+        &mut self,
+        socket: &S,
+    ) -> Result<(), IfError> {
         Ok(impls::bind_to_device(socket, &self.ifname)?)
     }
 }
@@ -234,7 +258,10 @@ impl Iface {
 impl Iface {
     fn has_group(ifname: &str, group: &str) -> Result<bool, IfError> {
         let ctl_fd = impls::new_control_socket()?;
-        Ok(impls::get_iface_groups(&ctl_fd, ifname)?.iter().find(|s| *s == group).is_some())
+        Ok(impls::get_iface_groups(&ctl_fd, ifname)?
+            .iter()
+            .find(|s| *s == group)
+            .is_some())
     }
 
     fn is_bridge(ifname: &str) -> Result<bool, IfError> {
