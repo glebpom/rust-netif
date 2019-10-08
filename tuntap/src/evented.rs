@@ -162,7 +162,11 @@ where
     }
 }
 
-impl<C> AsyncRead for EventedDescriptor<C> where C: ::DescriptorCloser {}
+impl<C> AsyncRead for EventedDescriptor<C> where C: ::DescriptorCloser {
+    unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [u8]) -> bool {
+        true
+    }
+}
 
 impl<C> AsyncWrite for EventedDescriptor<C>
 where
