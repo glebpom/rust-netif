@@ -53,6 +53,8 @@ pub enum Link {
     Ethernet,
 }
 
+pub type AddressIterator<'a> = std::iter::Cloned<std::slice::Iter<'a, IpAddr>>;
+
 #[cfg(unix)]
 #[derive(Debug, Clone)]
 pub struct Iface {
@@ -213,6 +215,10 @@ impl Iface {
         self.refresh()?;
 
         Ok(())
+    }
+
+    pub fn ip_addresses(&self) -> AddressIterator {
+        self.ip_addrs.iter().cloned()
     }
 }
 
