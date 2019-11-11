@@ -261,7 +261,6 @@ where
         let _handle_incoming = thread::spawn(move || {
             incoming_rx
                 .for_each(|mut packet| {
-                    println!("New incoming packet received");
                     write_file.write_all(&mut packet).map_err(|e| ())
                 })
                 .select(stop_writer_rx.then(|_| Ok(())))
