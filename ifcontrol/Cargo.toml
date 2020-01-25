@@ -20,7 +20,7 @@ cfg-if = "0.1.4"
 nix = "0.13"
 failure = "0.1.2"
 eui48 = "0.4.1"
-ipnetwork = "0.15.0"
+ipnetwork = "0.16.0"
 
 
 [target.'cfg(unix)'.dependencies]

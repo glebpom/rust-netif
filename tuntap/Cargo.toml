@@ -31,5 +31,5 @@ ifstructs = {path = "../ifstructs"}
 [target.'cfg(target_family="windows")'.dependencies]
 winreg = "0.6.0"
 winapi = { version = "0.3.6", features = ["winbase", "ioapiset", "winioctl", "processthreadsapi", "winerror", "minwinbase"] }
-ipconfig = { path = "../ipconfig" }
+ipconfig = "0.2.1"
 miow = "0.3"
