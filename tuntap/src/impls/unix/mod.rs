@@ -14,9 +14,9 @@ pub use self::linux::*;
 
 use std::os::unix::io::{AsRawFd, RawFd};
 
-impl<C> AsRawFd for ::Descriptor<C>
+impl<C> AsRawFd for crate::Descriptor<C>
 where
-    C: ::DescriptorCloser,
+    C: crate::DescriptorCloser,
 {
     fn as_raw_fd(&self) -> RawFd {
         self.inner.as_raw_fd()

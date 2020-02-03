@@ -1,47 +1,30 @@
-extern crate eui48;
+#[macro_use]
+extern crate cfg_if;
 #[cfg(unix)]
 #[macro_use]
 extern crate ifstructs;
-extern crate libc;
-#[macro_use]
-extern crate cfg_if;
 #[macro_use]
 extern crate nix;
-#[macro_use]
-extern crate failure;
-extern crate ipnetwork;
 
-mod impls;
-
-#[derive(Debug, Fail)]
-#[fail(display = "interface control error")]
-pub enum IfError {
-    #[cfg(unix)]
-    #[fail(display = "nix error: {}", _0)]
-    Nix(#[cause] ::nix::Error),
-    #[fail(display = "io error: {}", _0)]
-    Io(#[cause] ::std::io::Error),
-    #[fail(display = "iface not found")]
-    NotFound,
-}
-
-#[cfg(unix)]
-impl From<::nix::Error> for IfError {
-    fn from(e: ::nix::Error) -> IfError {
-        IfError::Nix(e)
-    }
-}
-
-impl From<::std::io::Error> for IfError {
-    fn from(e: ::std::io::Error) -> IfError {
-        IfError::Io(e)
-    }
-}
+use std::net::IpAddr;
 
 use eui48::MacAddress;
 #[cfg(unix)]
 use ifstructs::IfFlags;
-use std::net::IpAddr;
+use thiserror::Error;
+
+mod impls;
+
+#[derive(Debug, Error)]
+pub enum IfError {
+    #[cfg(unix)]
+    #[error("nix error: {}", _0)]
+    Nix(#[from] ::nix::Error),
+    #[error("io error: {}", _0)]
+    Io(#[from] ::std::io::Error),
+    #[error("iface not found")]
+    NotFound,
+}
 
 #[derive(Debug, Clone)]
 pub enum Link {
@@ -234,6 +217,7 @@ impl Iface {
         Ok(false)
     }
 }
+
 #[cfg(target_os = "linux")]
 impl Iface {
     fn is_bridge(ifname: &str) -> Result<bool, IfError> {

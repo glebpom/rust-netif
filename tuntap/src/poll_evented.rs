@@ -1,10 +1,8 @@
 /// This is a custom implementation of PollEvented, which doesn't do expensive `prepare_uninitialized_buffer`
 use tokio_reactor::{Handle, Registration};
 
-use futures::{task, Async, Poll};
 use mio;
 use mio::event::Evented;
-use tokio_io::{AsyncRead, AsyncWrite};
 
 use std::fmt;
 use std::io::{self, Read, Write};

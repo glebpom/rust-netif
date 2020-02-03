@@ -1,7 +1,7 @@
 
-use IfError;
+use crate::IfError;
 use ifstructs::{ifaliasreq, ifreq};
-use impls::unix::to_sockaddr;
+use crate::impls::unix::to_sockaddr;
 use std::net::IpAddr;
 use std::os::unix::io::AsRawFd;
 

@@ -10,6 +10,7 @@ documentation = "https://docs.rs/ifcontrol"
 description = """
 A Rust library to control network interfaces
 """
+edition = "2018"
 
 [badges]
 travis-ci = { repository = "glebpom/rust-netif" }
@@ -17,8 +18,8 @@ travis-ci = { repository = "glebpom/rust-netif" }
 [dependencies]
 libc = "^0.2"
 cfg-if = "0.1.4"
-nix = "0.13"
-failure = "0.1.2"
+nix = "0.16"
+thiserror = "1.0"
 eui48 = "0.4.1"
 ipnetwork = "0.16.0"
 

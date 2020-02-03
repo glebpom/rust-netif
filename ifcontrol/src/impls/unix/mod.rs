@@ -6,16 +6,16 @@ use nix::sys::socket::{socket, AddressFamily, InetAddr, SockAddr, SockFlag, Sock
 use std::fs::File;
 use std::net::{IpAddr, SocketAddr};
 use std::os::unix::io::{AsRawFd, FromRawFd};
-use IfError;
+use crate::IfError;
 
 macro_rules! ti {
     ($e:expr) => {
         match $e {
             Ok(r) => Ok(r),
             Err(nix::Error::Sys(nix::errno::Errno::ENXIO)) => {
-                Err(::IfError::NotFound)
+                Err(crate::IfError::NotFound)
             }
-            Err(e) => Err(::IfError::from(e)),
+            Err(e) => Err(crate::IfError::from(e)),
         }
     };
 }

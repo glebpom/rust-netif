@@ -10,22 +10,21 @@ documentation = "https://docs.rs/netif-tuntap"
 description = """
 A Rust library to manipulate TUN/TAP interfaces on *nix and Windows systems
 """
+edition = "2018"
 
 [dependencies]
-mio = "0.6.19"
-tokio = "0.1.22"
-tokio-reactor = "0.1.10"
-tokio-io = "0.1.12"
-futures = "0.1.23"
-bytes = "0.4"
-failure = "0.1.2"
+#mio = "0.6.19"
+tokio = { version = "0.2", features = [] }
+futures = "0.3"
+bytes = "0.5"
+thiserror = "1.0"
 ifcontrol = {path = "../ifcontrol"}
 bitflags = "1.0.3"
-parking_lot = "0.9.0"
+parking_lot = "0.10.0"
 
 [target.'cfg(target_family="unix")'.dependencies]
 libc = "^0.2"
-nix = "0.13.0"
+nix = "0.16.0"
 ifstructs = {path = "../ifstructs"}
 
 [target.'cfg(target_family="windows")'.dependencies]

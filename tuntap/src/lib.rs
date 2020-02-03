@@ -3,48 +3,22 @@
 #[cfg(target_os = "linux")]
 #[macro_use]
 extern crate bitflags;
-extern crate bytes;
 #[macro_use]
 extern crate futures;
-extern crate parking_lot;
-extern crate tokio;
-extern crate tokio_reactor;
-#[macro_use]
-extern crate failure;
-extern crate mio;
-extern crate tokio_io;
 
-#[cfg(unix)]
-extern crate ifstructs;
-
-extern crate ifcontrol;
-
-#[cfg(unix)]
-extern crate libc;
 #[cfg(unix)]
 #[macro_use]
 extern crate nix;
 
-#[cfg(windows)]
-extern crate ipconfig;
-#[cfg(windows)]
-extern crate miow;
-#[cfg(windows)]
-extern crate winapi;
-#[cfg(windows)]
-extern crate winreg;
-
-mod evented;
+//mod evented;
 mod impls;
-mod poll_evented;
+//mod poll_evented;
 
-pub use evented::EventedDescriptor;
+//pub use evented::EventedDescriptor;
 pub use impls::*;
-pub use poll_evented::PollEvented;
+//pub use poll_evented::PollEvented;
 
 use bytes::{Bytes, BytesMut};
-use futures::sync::{mpsc, oneshot};
-use futures::{Future, Sink, Stream};
 use parking_lot::Mutex;
 use std::fs::File;
 use std::io;
@@ -55,57 +29,39 @@ use std::string::ToString;
 use std::sync::{Arc, Weak};
 use std::thread;
 use std::time::Duration;
+use thiserror::Error;
+use futures::channel::{oneshot, mpsc};
 
 const MTU: usize = 65536;
 const RESERVE_AT_ONCE: usize = 128 * MTU; //reserve large buffer once
 
-#[derive(Debug, Fail)]
-#[fail(display = "tuntap error")]
+#[derive(Debug, Error)]
 pub enum TunTapError {
     #[cfg(unix)]
-    #[fail(display = "nix error: {}", _0)]
-    Nix(#[cause] ::nix::Error),
-    #[fail(display = "io error: {}", _0)]
-    Io(#[cause] ::std::io::Error),
-    #[fail(display = "ifcontrol error: {}", _0)]
-    IfControl(#[cause] ifcontrol::IfError),
-    #[fail(display = "not found: {}", msg)]
+    #[error("nix error: `{0}`")]
+    Nix(#[from] ::nix::Error),
+    #[error("io error: `{0}`")]
+    Io(#[from] ::std::io::Error),
+    #[error("ifcontrol error: `{0}`")]
+    IfControl(#[from] ifcontrol::IfError),
+    #[error("not found: `{msg}`")]
     NotFound { msg: String },
-    #[fail(display = "max number {} of virtual interfaces reached", max)]
+    #[error("max number {max} of virtual interfaces reached")]
     MaxNumberReached { max: usize },
-    #[fail(display = "name too long {}, max {}", s, max)]
+    #[error("name too long {s}, max {max}")]
     NameTooLong { s: usize, max: usize },
-    #[fail(display = "bad arguments: {}", msg)]
+    #[error("bad arguments: {msg}")]
     BadArguments { msg: String },
-    #[fail(display = "backend is not supported: {}", msg)]
+    #[error("backend is not supported: {msg}")]
     NotSupported { msg: String },
-    #[fail(display = "driver not found: {}", msg)]
+    #[error("driver not found: {msg}")]
     DriverNotFound { msg: String },
-    #[fail(display = "bad data received: {}", msg)]
+    #[error("bad data received: {msg}")]
     BadData { msg: String },
-    #[fail(display = "device busy")]
+    #[error("device busy")]
     Busy,
-    #[fail(display = "error: {}", msg)]
+    #[error("error: {msg}")]
     Other { msg: String },
-}
-
-#[cfg(unix)]
-impl From<::nix::Error> for TunTapError {
-    fn from(e: ::nix::Error) -> TunTapError {
-        TunTapError::Nix(e)
-    }
-}
-
-impl From<::std::io::Error> for TunTapError {
-    fn from(e: ::std::io::Error) -> TunTapError {
-        TunTapError::Io(e)
-    }
-}
-
-impl From<ifcontrol::IfError> for TunTapError {
-    fn from(e: ifcontrol::IfError) -> TunTapError {
-        TunTapError::IfControl(e)
-    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -208,7 +164,7 @@ pub struct Virtualnterface<D> {
 
 impl<C> Virtualnterface<Descriptor<C>>
 where
-    C: ::DescriptorCloser,
+    C: crate::DescriptorCloser,
 {
     pub fn pop_file(&mut self) -> Option<Descriptor<C>> {
         self.queues.pop()
@@ -231,15 +187,15 @@ where
         let (incoming_tx, incoming_rx) = mpsc::channel::<Bytes>(4);
 
         let _handle_outgoing = thread::spawn(move || {
-            let mut buf = BytesMut::from(vec![0u8; ::RESERVE_AT_ONCE]);
+            let mut buf = BytesMut::from(vec![0u8; crate::RESERVE_AT_ONCE]);
             loop {
                 match read_file.read(&mut buf) {
                     Ok(len) => {
                         if len > 0 {
                             let packet = buf.split_to(len);
                             let cur_capacity = buf.len();
-                            if cur_capacity < ::MTU {
-                                buf.resize(::RESERVE_AT_ONCE, 0);
+                            if cur_capacity < crate::MTU {
+                                buf.resize(crate::RESERVE_AT_ONCE, 0);
                             }
                             if let Err(e) = outgoing_tx.clone().send(packet).wait() {
                                 //stop thread because other side is gone

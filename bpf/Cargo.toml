@@ -10,8 +10,9 @@ documentation = "https://docs.rs/netif-bpf"
 description = """
 A Rust library to send and receive packages through BPF on BSD systems
 """
+edition = "2018"
 
 [dependencies]
 libc = "^0.2"
-nix = "0.13.0"
+nix = "0.16.0"
 ifstructs = {path = "../ifstructs"}

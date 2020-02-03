@@ -11,17 +11,17 @@ pub union ifr_ifru {
     pub ifru_mtu: libc::c_int,
     pub ifru_phys: libc::c_int,
     pub ifru_media: libc::c_int,
-    pub ifru_data: ::caddr_t,
+    pub ifru_data: crate::caddr_t,
 }
 
-impl ::ifreq {
+impl crate::ifreq {
     /// Get flags
-    pub unsafe fn get_flags(&self) -> ::IfFlags {
-        ::IfFlags::from_bits_truncate(i32::from(self.ifr_ifru.ifru_flags))
+    pub unsafe fn get_flags(&self) -> crate::IfFlags {
+        crate::IfFlags::from_bits_truncate(i32::from(self.ifr_ifru.ifru_flags))
     }
 
     /// Set flags
-    pub unsafe fn set_flags(&mut self, flags: ::IfFlags) {
+    pub unsafe fn set_flags(&mut self, flags: crate::IfFlags) {
         self.ifr_ifru.ifru_flags = flags.bits() as i16;
     }
 
@@ -39,7 +39,7 @@ impl ::ifreq {
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct ifaliasreq {
-    pub ifra_name: ::IfName,
+    pub ifra_name: crate::IfName,
     pub ifra_addr: libc::sockaddr,
     pub ifra_broadaddr: libc::sockaddr,
     pub ifra_mask: libc::sockaddr,

@@ -8,7 +8,7 @@ pub type caddr_t = *mut libc::c_char;
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct ifreq {
-    pub ifr_name: ::IfName,
+    pub ifr_name: crate::IfName,
     pub ifr_ifru: ifr_ifru,
 }
 

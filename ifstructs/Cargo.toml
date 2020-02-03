@@ -10,6 +10,7 @@ documentation = "https://docs.rs/ifstructs"
 description = """
 A Rust library with native bindings to unix if* structures
 """
+edition = "2018"
 
 [badges]
 travis-ci = { repository = "glebpom/rust-ifstructs" }
@@ -18,4 +19,4 @@ travis-ci = { repository = "glebpom/rust-ifstructs" }
 libc = "^0.2"
 cfg-if = "0.1.4"
 bitflags = "1.0.3"
-nix = "0.13"
+nix = "0.16"

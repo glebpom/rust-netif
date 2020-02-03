@@ -14,8 +14,7 @@ use std::os::windows::io::AsRawHandle;
 use std::sync::Arc;
 
 use crate::poll_evented::PollEvented;
-use bytes::{Bytes, BytesMut, IntoBuf};
-use futures::{Async, AsyncSink, Poll, Sink, StartSend, Stream};
+use bytes::{Bytes, BytesMut};
 use mio;
 use mio::event::Evented;
 #[cfg(unix)]
@@ -23,7 +22,7 @@ use mio::unix::EventedFd;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 #[cfg(windows)]
-use impls::async::AsyncFile;
+use impls::r#async::AsyncFile;
 
 #[cfg(unix)]
 impl<C> Evented for EventedDescriptor<C>
