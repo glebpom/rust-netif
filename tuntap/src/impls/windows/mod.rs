@@ -81,7 +81,7 @@ impl OpenvpnTapDriver {
     {
         let (file, name) = OpenvpnTapDriver::open_dev(device_id, Some((ip, network, netmask)))?;
 
-        let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
+        let info = Arc::new(Mutex::new(VirtualInterfaceInfo {
             name,
             iface_type: ::VirtualInterfaceType::Tun,
         }));
@@ -101,7 +101,7 @@ impl OpenvpnTapDriver {
     {
         let (file, name) = OpenvpnTapDriver::open_dev(device_id, None)?;
 
-        let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
+        let info = Arc::new(Mutex::new(VirtualInterfaceInfo {
             name,
             iface_type: ::VirtualInterfaceType::Tap,
         }));

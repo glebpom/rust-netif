@@ -1,3 +1,4 @@
+use cfg_if::cfg_if;
 use libc;
 
 #[derive(Copy, Clone, Debug)]

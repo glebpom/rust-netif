@@ -1,5 +1,7 @@
+use cfg_if::cfg_if;
 use ifstructs::ifreq;
 use libc;
+use nix::{ioctl_readwrite_bad, ioctl_write_ptr_bad};
 
 // #define SIOCGIFFLAGS	0x8913		/* get flags			*/
 ioctl_readwrite_bad!(iface_get_flags, libc::SIOCGIFFLAGS, ifreq);

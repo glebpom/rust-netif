@@ -3,23 +3,7 @@
 #[cfg(target_os = "linux")]
 #[macro_use]
 extern crate bitflags;
-#[macro_use]
-extern crate futures;
 
-#[cfg(unix)]
-#[macro_use]
-extern crate nix;
-
-//mod evented;
-mod impls;
-//mod poll_evented;
-
-//pub use evented::EventedDescriptor;
-pub use impls::*;
-//pub use poll_evented::PollEvented;
-
-use bytes::{Bytes, BytesMut};
-use parking_lot::Mutex;
 use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
@@ -28,9 +12,24 @@ use std::os::windows::io::{FromRawHandle, IntoRawHandle};
 use std::string::ToString;
 use std::sync::{Arc, Weak};
 use std::thread;
-use std::time::Duration;
+
+use bytes::{Bytes, BytesMut};
+use futures::{pin_mut, select};
+use futures::channel::mpsc;
+use futures::executor::block_on;
+use futures::prelude::*;
+use parking_lot::Mutex;
 use thiserror::Error;
-use futures::channel::{oneshot, mpsc};
+
+//pub use evented::EventedDescriptor;
+pub use impls::*;
+use stop_handle::stop_handle;
+
+mod evented;
+mod impls;
+//mod poll_evented;
+
+//pub use poll_evented::PollEvented;
 
 const MTU: usize = 65536;
 const RESERVE_AT_ONCE: usize = 128 * MTU; //reserve large buffer once
@@ -76,13 +75,13 @@ impl ToString for VirtualInterfaceType {
             VirtualInterfaceType::Tap => "tap",
             VirtualInterfaceType::Tun => "tun",
         }
-        .to_string()
+            .to_string()
     }
 }
 
-pub trait DescriptorCloser
-where
-    Self: std::marker::Sized + Send + 'static,
+pub trait DescriptorCloser: Unpin
+    where
+        Self: std::marker::Sized + Send + 'static,
 {
     fn close_descriptor(d: &mut Descriptor<Self>) -> Result<(), TunTapError>;
 }
@@ -101,8 +100,8 @@ pub struct Descriptor<C: DescriptorCloser> {
 }
 
 impl<C> Descriptor<C>
-where
-    C: DescriptorCloser,
+    where
+        C: DescriptorCloser,
 {
     fn from_file(file: File, info: &Arc<Mutex<VirtualInterfaceInfo>>) -> Descriptor<C> {
         Descriptor {
@@ -122,8 +121,8 @@ where
 }
 
 impl<C> Drop for Descriptor<C>
-where
-    C: DescriptorCloser,
+    where
+        C: DescriptorCloser,
 {
     fn drop(&mut self) {
         C::close_descriptor(self).unwrap()
@@ -132,8 +131,8 @@ where
 
 #[cfg(not(windows))]
 impl<C> Read for Descriptor<C>
-where
-    C: DescriptorCloser,
+    where
+        C: DescriptorCloser,
 {
     #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -143,8 +142,8 @@ where
 
 #[cfg(not(windows))]
 impl<C> Write for Descriptor<C>
-where
-    C: DescriptorCloser,
+    where
+        C: DescriptorCloser,
 {
     #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
@@ -163,8 +162,8 @@ pub struct Virtualnterface<D> {
 }
 
 impl<C> Virtualnterface<Descriptor<C>>
-where
-    C: crate::DescriptorCloser,
+    where
+        C: crate::DescriptorCloser,
 {
     pub fn pop_file(&mut self) -> Option<Descriptor<C>> {
         self.queues.pop()
@@ -174,20 +173,22 @@ where
     pub fn pop_split_channels(
         &mut self,
     ) -> Option<(
-        impl Sink<SinkItem = Bytes, SinkError = io::Error>,
-        impl Stream<Item = BytesMut, Error = io::Error>,
+        impl Sink<Bytes, Error=io::Error>,
+        impl Stream<Item=BytesMut>,
     )> {
         let mut write_file = self.pop_file()?;
         let mut read_file = write_file.try_clone().unwrap();
 
-        let (stop_writer_tx, stop_writer_rx) = oneshot::channel::<()>();
+        let (stop_writer_tx, stop_writer_rx) = stop_handle();
 
         //hardcoded buffer size. move to builder somehow?
         let (outgoing_tx, outgoing_rx) = mpsc::channel::<BytesMut>(4);
-        let (incoming_tx, incoming_rx) = mpsc::channel::<Bytes>(4);
+        let (incoming_tx, mut incoming_rx) = mpsc::channel::<Bytes>(4);
 
         let _handle_outgoing = thread::spawn(move || {
-            let mut buf = BytesMut::from(vec![0u8; crate::RESERVE_AT_ONCE]);
+            let mut buf = BytesMut::with_capacity(crate::RESERVE_AT_ONCE);
+            buf.resize(crate::RESERVE_AT_ONCE, 0);
+
             loop {
                 match read_file.read(&mut buf) {
                     Ok(len) => {
@@ -197,7 +198,7 @@ where
                             if cur_capacity < crate::MTU {
                                 buf.resize(crate::RESERVE_AT_ONCE, 0);
                             }
-                            if let Err(e) = outgoing_tx.clone().send(packet).wait() {
+                            if let Err(_e) = block_on(outgoing_tx.clone().send(packet)) {
                                 //stop thread because other side is gone
                                 break;
                             }
@@ -206,30 +207,40 @@ where
                     Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {
                         // do nothing
                     }
-                    Err(ref e) => {
+                    Err(ref _e) => {
                         break;
                     }
                 }
             }
-            let _ = stop_writer_tx.send(());
+            let _ = stop_writer_tx.stop(());
         });
 
         let _handle_incoming = thread::spawn(move || {
-            incoming_rx
-                .for_each(|mut packet| {
-                    write_file.write_all(&mut packet).map_err(|e| ())
-                })
-                .select(stop_writer_rx.then(|_| Ok(())))
-                .map_err(|_| ())
-                .wait()
-                .expect("Could not write to outlet");
+            let forward = async move {
+                while let Some(mut packet) = incoming_rx.next().await {
+                    write_file.write_all(&mut packet)?;
+                };
+
+                Ok::<(), io::Error>(())
+            }.fuse();
+
+
+            let perform = async move {
+                pin_mut!(forward);
+                pin_mut!(stop_writer_rx);
+
+                select! {
+                    _ = forward => {},
+                    _ = stop_writer_rx => {},
+                }
+            };
+
+            block_on(perform);
         });
 
         Some((
-            Box::new(
-                incoming_tx.sink_map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error")),
-            ),
-            Box::new(outgoing_rx.map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error"))),
+            incoming_tx.sink_map_err(|_| io::Error::new(io::ErrorKind::Other, "mpsc error")),
+            outgoing_rx,
         ))
     }
 }

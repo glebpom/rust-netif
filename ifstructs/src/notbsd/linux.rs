@@ -1,3 +1,4 @@
+use bitflags::bitflags;
 use libc;
 use std::io;
 
@@ -12,19 +13,19 @@ pub union ifr_ifru {
     pub ifr_ifindex: libc::c_int,
     pub ifr_metric: libc::c_int,
     pub ifr_mtu: libc::c_int,
-    pub ifr_map: ::ifmap,
-    pub ifr_slave: ::IfName,
-    pub ifr_newname: ::IfName,
+    pub ifr_map: crate::ifmap,
+    pub ifr_slave: crate::IfName,
+    pub ifr_newname: crate::IfName,
     pub ifr_data: *mut libc::c_char,
 }
 
 #[repr(C)]
 pub struct ifreq {
-    pub ifr_name: ::IfName,
+    pub ifr_name: crate::IfName,
     pub ifr_ifru: ifr_ifru,
 }
 
-impl ::ifreq {
+impl ifreq {
     pub fn set_name(&mut self, name: &str) -> io::Result<()> {
         set_name!(self.ifr_name, name)
     }
@@ -34,12 +35,12 @@ impl ::ifreq {
     }
 
     /// Get flags
-    pub unsafe fn get_flags(&self) -> ::IfFlags {
-        ::IfFlags::from_bits_truncate(i32::from(self.ifr_ifru.ifr_flags))
+    pub unsafe fn get_flags(&self) -> crate::IfFlags {
+        crate::IfFlags::from_bits_truncate(i32::from(self.ifr_ifru.ifr_flags))
     }
 
     /// Enable passed flags
-    pub unsafe fn set_flags(&mut self, flags: ::IfFlags) {
+    pub unsafe fn set_flags(&mut self, flags: crate::IfFlags) {
         self.ifr_ifru.ifr_flags = flags.bits() as i16;
     }
 

@@ -1,11 +1,13 @@
-use ifstructs::ifreq;
+use cfg_if::cfg_if;
 use ifstructs::IfFlags;
+use ifstructs::ifreq;
 use libc;
 use nix;
-use nix::sys::socket::{socket, AddressFamily, InetAddr, SockAddr, SockFlag, SockType};
+use nix::sys::socket::{AddressFamily, InetAddr, SockAddr, socket, SockFlag, SockType};
 use std::fs::File;
 use std::net::{IpAddr, SocketAddr};
 use std::os::unix::io::{AsRawFd, FromRawFd};
+
 use crate::IfError;
 
 macro_rules! ti {
@@ -108,11 +110,12 @@ pub fn get_all_addresses() -> Result<nix::ifaddrs::InterfaceAddressIterator, IfE
 pub fn to_sockaddr(ip: IpAddr) -> libc::sockaddr {
     let r = SockAddr::new_inet(InetAddr::from_std(&SocketAddr::new(ip, 0)));
     let f = unsafe { r.as_ffi_pair() };
+    #[allow(unused_mut)]
     let mut res = f.0.clone();
     #[cfg(not(any(target_os = "android", target_os = "linux")))]
-    {
-        res.sa_len = f.1 as u8;
-    }
+        {
+            res.sa_len = f.1 as u8;
+        }
     res
 }
 

@@ -1,9 +1,11 @@
-
-use crate::IfError;
+use cfg_if::cfg_if;
 use ifstructs::{ifaliasreq, ifreq};
-use crate::impls::unix::to_sockaddr;
+use nix::{ioctl_readwrite, ioctl_write_ptr};
 use std::net::IpAddr;
 use std::os::unix::io::AsRawFd;
+
+use crate::IfError;
+use crate::impls::unix::to_sockaddr;
 
 // #define	SIOCGIFFLAGS	_IOWR('i', 17, struct ifreq)	/* get ifnet flags */
 ioctl_readwrite!(iface_get_flags, b'i', 17, ifreq);

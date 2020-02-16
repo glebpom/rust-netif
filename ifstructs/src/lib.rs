@@ -1,16 +1,8 @@
-extern crate libc;
-#[macro_use]
-extern crate cfg_if;
-#[macro_use]
-extern crate bitflags;
-
-#[macro_use]
-extern crate nix;
+use std::{io, mem};
+use cfg_if::cfg_if;
 
 #[macro_use]
 mod macros;
-
-use std::{io, mem};
 
 pub type IfName = [u8; libc::IFNAMSIZ];
 
@@ -46,21 +38,22 @@ cfg_if! {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::env;
     use std::io;
+
+    use super::*;
 
     #[test]
     fn test_get_iface_flags() {
         #[cfg(any(target_os = "linux", target_os = "android"))]
-        let request_code = 0x8913; // #define SIOCGIFFLAGS	0x8913		/* get flags			*/
+            let request_code = 0x8913; // #define SIOCGIFFLAGS	0x8913		/* get flags			*/
         #[cfg(not(any(target_os = "linux", target_os = "android")))]
-        let request_code = request_code_readwrite!(b'i', 17, mem::size_of::<ifreq>());
+            let request_code = request_code_readwrite!(b'i', 17, mem::size_of::<ifreq>());
 
         #[cfg(any(target_os = "macos", target_os = "ios"))]
-        let default_iface = "lo0";
+            let default_iface = "lo0";
         #[cfg(not(any(target_os = "macos", target_os = "ios")))]
-        let default_iface = "lo";
+            let default_iface = "lo";
 
         let iface_name = env::var("TEST_IFACE").unwrap_or(default_iface.to_owned());
 

@@ -31,7 +31,7 @@ impl Native {
 
     pub fn create_tun(&self) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
         let (file, name) = self.create(::VirtualInterfaceType::Tun, false)?;
-        let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
+        let info = Arc::new(Mutex::new(VirtualInterfaceInfo {
             name,
             iface_type: ::VirtualInterfaceType::Tun,
         }));
@@ -44,7 +44,7 @@ impl Native {
 
     pub fn create_tap(&self) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
         let (file, name) = self.create(::VirtualInterfaceType::Tap, false)?;
-        let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
+        let info = Arc::new(Mutex::new(VirtualInterfaceInfo {
             name,
             iface_type: ::VirtualInterfaceType::Tun,
         }));
@@ -58,7 +58,7 @@ impl Native {
         &self,
     ) -> Result<::Virtualnterface<PollEvented<EventedDescriptor<Native>>>, TunTapError> {
         let (file, name) = self.create(::VirtualInterfaceType::Tun, true)?;
-        let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
+        let info = Arc::new(Mutex::new(VirtualInterfaceInfo {
             name,
             iface_type: ::VirtualInterfaceType::Tun,
         }));
@@ -75,7 +75,7 @@ impl Native {
         &self,
     ) -> Result<::Virtualnterface<PollEvented<EventedDescriptor<Native>>>, TunTapError> {
         let (file, name) = self.create(::VirtualInterfaceType::Tap, true)?;
-        let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
+        let info = Arc::new(Mutex::new(VirtualInterfaceInfo {
             name,
             iface_type: ::VirtualInterfaceType::Tun,
         }));

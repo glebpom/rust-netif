@@ -1,10 +1,17 @@
-use crate::evented::EventedDescriptor;
-use crate::poll_evented::PollEvented;
-use parking_lot::Mutex;
 use std::fs::File;
 use std::os::unix::prelude::*;
 use std::sync::Arc;
-use TunTapError;
+
+use nix::ioctl_write_ptr;
+use parking_lot::Mutex;
+use tokio::io::PollEvented;
+
+use crate::{Descriptor, DescriptorCloser, TunTapError, VirtualInterfaceInfo, Virtualnterface};
+use crate::evented::EventedDescriptor;
+use crate::VirtualInterfaceType;
+
+#[cfg(target_os = "linux")]
+pub use self::normal_linux::*;
 
 pub struct Native {}
 
@@ -17,18 +24,18 @@ impl Native {
         &self,
         ifname: &str,
         fds: &[RawFd],
-    ) -> Result<::Virtualnterface<PollEvented<EventedDescriptor<Native>>>, TunTapError> {
-        let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
+    ) -> Result<Virtualnterface<PollEvented<EventedDescriptor<Native>>>, TunTapError> {
+        let info = Arc::new(Mutex::new(VirtualInterfaceInfo {
             name: ifname.to_owned(),
-            iface_type: ::VirtualInterfaceType::Tun,
+            iface_type: VirtualInterfaceType::Tun,
         }));
-        Ok(::Virtualnterface {
+        Ok(Virtualnterface {
             queues: fds
                 .iter()
                 .map(|&fd| {
-                    PollEvented::new(::Descriptor::from_file(File::from_raw_fd(fd), &info).into())
+                    PollEvented::new(Descriptor::from_file(File::from_raw_fd(fd), &info).into())
                 })
-                .collect(),
+                .collect::<Result<Vec<_>, _>>()?,
             info: Arc::downgrade(&info),
         })
     }
@@ -37,39 +44,41 @@ impl Native {
         &self,
         ifname: &str,
         fds: &[RawFd],
-    ) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
-        let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
+    ) -> Result<Virtualnterface<Descriptor<Native>>, TunTapError> {
+        let info = Arc::new(Mutex::new(VirtualInterfaceInfo {
             name: ifname.to_owned(),
-            iface_type: ::VirtualInterfaceType::Tun,
+            iface_type: VirtualInterfaceType::Tun,
         }));
-        Ok(::Virtualnterface {
+        Ok(Virtualnterface {
             queues: fds
                 .iter()
-                .map(|&fd| ::Descriptor::from_file(File::from_raw_fd(fd), &info))
+                .map(|&fd| Descriptor::from_file(File::from_raw_fd(fd), &info))
                 .collect(),
             info: Arc::downgrade(&info),
         })
     }
 }
 
-impl ::DescriptorCloser for Native {
-    fn close_descriptor(_: &mut ::Descriptor<Native>) -> Result<(), TunTapError> {
+impl DescriptorCloser for Native {
+    fn close_descriptor(_: &mut Descriptor<Native>) -> Result<(), TunTapError> {
         Ok(())
     }
 }
 
 #[cfg(target_os = "linux")]
 mod normal_linux {
-    use super::*;
-    use ifcontrol::Iface;
-    use ifstructs::{ifreq, IfFlags};
-    use libc;
-    use nix::fcntl;
     use std::fs::OpenOptions;
-    use std::mem;
     use std::os::unix::io::AsRawFd;
     use std::path::Path;
     use std::str;
+
+    use libc;
+    use nix::fcntl;
+
+    use ifcontrol::Iface;
+    use ifstructs::ifreq;
+
+    use super::*;
 
     bitflags! {
         pub struct TunTapFlags: libc::c_short {
@@ -99,17 +108,17 @@ mod normal_linux {
             &self,
             name: Option<&str>,
             queues: usize,
-        ) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
-            let (files, name) = self.create(name, ::VirtualInterfaceType::Tun, false, queues)?;
-            let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
+        ) -> Result<Virtualnterface<Descriptor<Native>>, TunTapError> {
+            let (files, name) = self.create(name, VirtualInterfaceType::Tun, false, queues)?;
+            let info = Arc::new(Mutex::new(VirtualInterfaceInfo {
                 name,
-                iface_type: ::VirtualInterfaceType::Tun,
+                iface_type: VirtualInterfaceType::Tun,
             }));
 
-            Ok(::Virtualnterface {
+            Ok(Virtualnterface {
                 queues: files
                     .into_iter()
-                    .map(|f| ::Descriptor::from_file(f, &info))
+                    .map(|f| Descriptor::from_file(f, &info))
                     .collect(),
                 info: Arc::downgrade(&info),
             })
@@ -119,16 +128,16 @@ mod normal_linux {
             &self,
             name: Option<&str>,
             queues: usize,
-        ) -> Result<::Virtualnterface<::Descriptor<Native>>, TunTapError> {
-            let (files, name) = self.create(name, ::VirtualInterfaceType::Tap, false, queues)?;
-            let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
+        ) -> Result<Virtualnterface<Descriptor<Native>>, TunTapError> {
+            let (files, name) = self.create(name, VirtualInterfaceType::Tap, false, queues)?;
+            let info = Arc::new(Mutex::new(VirtualInterfaceInfo {
                 name,
-                iface_type: ::VirtualInterfaceType::Tap,
+                iface_type: VirtualInterfaceType::Tap,
             }));
-            Ok(::Virtualnterface {
+            Ok(Virtualnterface {
                 queues: files
                     .into_iter()
-                    .map(|f| ::Descriptor::from_file(f, &info))
+                    .map(|f| Descriptor::from_file(f, &info))
                     .collect(),
                 info: Arc::downgrade(&info),
             })
@@ -138,18 +147,18 @@ mod normal_linux {
             &self,
             name: Option<&str>,
             queues: usize,
-        ) -> Result<::Virtualnterface<PollEvented<EventedDescriptor<Native>>>, TunTapError>
+        ) -> Result<Virtualnterface<PollEvented<EventedDescriptor<Native>>>, TunTapError>
         {
-            let (files, name) = self.create(name, ::VirtualInterfaceType::Tun, true, queues)?;
-            let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
+            let (files, name) = self.create(name, VirtualInterfaceType::Tun, true, queues)?;
+            let info = Arc::new(Mutex::new(VirtualInterfaceInfo {
                 name,
-                iface_type: ::VirtualInterfaceType::Tun,
+                iface_type: VirtualInterfaceType::Tun,
             }));
-            Ok(::Virtualnterface {
+            Ok(Virtualnterface {
                 queues: files
                     .into_iter()
-                    .map(|f| PollEvented::new(::Descriptor::from_file(f, &info).into()))
-                    .collect(),
+                    .map(|f| PollEvented::new(Descriptor::from_file(f, &info).into()))
+                    .collect::<Result<Vec<_>, _>>()?,
                 info: Arc::downgrade(&info),
             })
         }
@@ -158,18 +167,18 @@ mod normal_linux {
             &self,
             name: Option<&str>,
             queues: usize,
-        ) -> Result<::Virtualnterface<PollEvented<EventedDescriptor<Native>>>, TunTapError>
+        ) -> Result<Virtualnterface<PollEvented<EventedDescriptor<Native>>>, TunTapError>
         {
-            let (files, name) = self.create(name, ::VirtualInterfaceType::Tap, true, queues)?;
-            let info = Arc::new(Mutex::new(::VirtualInterfaceInfo {
+            let (files, name) = self.create(name, VirtualInterfaceType::Tap, true, queues)?;
+            let info = Arc::new(Mutex::new(VirtualInterfaceInfo {
                 name,
-                iface_type: ::VirtualInterfaceType::Tap,
+                iface_type: VirtualInterfaceType::Tap,
             }));
-            Ok(::Virtualnterface {
+            Ok(Virtualnterface {
                 queues: files
                     .into_iter()
-                    .map(|f| PollEvented::new(::Descriptor::from_file(f, &info).into()))
-                    .collect(),
+                    .map(|f| PollEvented::new(Descriptor::from_file(f, &info).into()))
+                    .collect::<Result<Vec<_>, _>>()?,
                 info: Arc::downgrade(&info),
             })
         }
@@ -203,7 +212,7 @@ mod normal_linux {
         fn create(
             &self,
             name: Option<&str>,
-            iface_type: ::VirtualInterfaceType,
+            iface_type: VirtualInterfaceType,
             is_async: bool,
             queues: usize,
         ) -> Result<(Vec<File>, String), TunTapError> {
@@ -223,8 +232,8 @@ mod normal_linux {
 
             let mut flags = TunTapFlags::IFF_NO_PI;
             flags.insert(match iface_type {
-                ::VirtualInterfaceType::Tun => TunTapFlags::IFF_TUN,
-                ::VirtualInterfaceType::Tap => TunTapFlags::IFF_TAP,
+                VirtualInterfaceType::Tun => TunTapFlags::IFF_TUN,
+                VirtualInterfaceType::Tap => TunTapFlags::IFF_TAP,
             });
             if queues > 1 {
                 flags.insert(TunTapFlags::IFF_MULTI_QUEUE);
@@ -248,6 +257,3 @@ mod normal_linux {
         }
     }
 }
-
-#[cfg(target_os = "linux")]
-pub use self::normal_linux::*;

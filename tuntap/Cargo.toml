@@ -13,14 +13,16 @@ A Rust library to manipulate TUN/TAP interfaces on *nix and Windows systems
 edition = "2018"
 
 [dependencies]
-#mio = "0.6.19"
-tokio = { version = "0.2", features = [] }
-futures = "0.3"
+mio = "0.6.19"
+tokio = { version = "0.2", features = ["io-driver"] }
+futures = { version = "0.3", features = [] }
 bytes = "0.5"
 thiserror = "1.0"
 ifcontrol = {path = "../ifcontrol"}
 bitflags = "1.0.3"
 parking_lot = "0.10.0"
+stop-handle = "0.1"
+pin-project-lite = "0.1.4"
 
 [target.'cfg(target_family="unix")'.dependencies]
 libc = "^0.2"
@@ -32,3 +34,7 @@ winreg = "0.6.0"
 winapi = { version = "0.3.6", features = ["winbase", "ioapiset", "winioctl", "processthreadsapi", "winerror", "minwinbase"] }
 ipconfig = "0.2.1"
 miow = "0.3"
+
+[dev-dependencies]
+tokio = { version = "0.2", features = ["full"] }
+

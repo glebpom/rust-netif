@@ -1,17 +1,10 @@
-#[macro_use]
-extern crate cfg_if;
-#[cfg(unix)]
-#[macro_use]
-extern crate ifstructs;
-#[macro_use]
-extern crate nix;
-
 use std::net::IpAddr;
 
 use eui48::MacAddress;
+use thiserror::Error;
+
 #[cfg(unix)]
 use ifstructs::IfFlags;
-use thiserror::Error;
 
 mod impls;
 

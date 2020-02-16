@@ -1,7 +1,3 @@
-#[cfg(windows)]
-use impls::set_iface_status;
-#[cfg(windows)]
-use parking_lot::Mutex;
 use std::io;
 use std::io::{Read, Write};
 #[cfg(windows)]
@@ -13,21 +9,31 @@ use std::os::windows::io::AsRawHandle;
 #[cfg(windows)]
 use std::sync::Arc;
 
-use crate::poll_evented::PollEvented;
-use bytes::{Bytes, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
+use futures::{ready, Sink, Stream, StreamExt};
+use futures::task::{Context, Poll};
 use mio;
 use mio::event::Evented;
 #[cfg(unix)]
 use mio::unix::EventedFd;
+#[cfg(windows)]
+use parking_lot::Mutex;
+use pin_project_lite::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::PollEvented;
+use tokio::macros::support::Pin;
 
 #[cfg(windows)]
 use impls::r#async::AsyncFile;
+#[cfg(windows)]
+use impls::set_iface_status;
+
+use crate::{MTU, RESERVE_AT_ONCE};
 
 #[cfg(unix)]
 impl<C> Evented for EventedDescriptor<C>
-where
-    C: ::DescriptorCloser,
+    where
+        C: crate::DescriptorCloser,
 {
     fn register(
         &self,
@@ -56,8 +62,8 @@ where
 
 #[cfg(windows)]
 impl<C> Evented for EventedDescriptor<C>
-where
-    C: ::DescriptorCloser,
+    where
+        C: ::DescriptorCloser,
 {
     fn register(
         &self,
@@ -85,19 +91,19 @@ where
 }
 
 #[cfg(unix)]
-pub struct EventedDescriptor<C: ::DescriptorCloser>(::Descriptor<C>);
+pub struct EventedDescriptor<C: crate::DescriptorCloser>(crate::Descriptor<C>);
 
 #[cfg(windows)]
 pub struct EventedDescriptor<C: ::DescriptorCloser> {
     inner: AsyncFile,
     _closer: PhantomData<C>,
-    info: Arc<Mutex<::VirtualInterfaceInfo>>,
+    info: Arc<Mutex<VirtualInterfaceInfo>>,
 }
 
 #[cfg(windows)]
 impl<C> Drop for EventedDescriptor<C>
-where
-    C: ::DescriptorCloser,
+    where
+        C: ::DescriptorCloser,
 {
     fn drop(&mut self) {
         use std::process::Command;
@@ -131,16 +137,16 @@ where
 }
 
 impl<C> EventedDescriptor<C>
-where
-    C: ::DescriptorCloser,
+    where
+        C: crate::DescriptorCloser,
 {
     #[cfg(unix)]
-    fn io_mut(&mut self) -> &mut ::Descriptor<C> {
+    fn io_mut(&mut self) -> &mut crate::Descriptor<C> {
         &mut self.0
     }
 
     #[cfg(unix)]
-    fn io(&self) -> &::Descriptor<C> {
+    fn io(&self) -> &crate::Descriptor<C> {
         &self.0
     }
 
@@ -151,19 +157,19 @@ where
 }
 
 #[cfg(unix)]
-impl<C> From<::Descriptor<C>> for EventedDescriptor<C>
-where
-    C: ::DescriptorCloser,
+impl<C> From<crate::Descriptor<C>> for EventedDescriptor<C>
+    where
+        C: crate::DescriptorCloser,
 {
-    fn from(d: ::Descriptor<C>) -> EventedDescriptor<C> {
+    fn from(d: crate::Descriptor<C>) -> EventedDescriptor<C> {
         EventedDescriptor(d)
     }
 }
 
 #[cfg(windows)]
 impl<C> From<::Descriptor<C>> for EventedDescriptor<C>
-where
-    C: ::DescriptorCloser,
+    where
+        C: ::DescriptorCloser,
 {
     fn from(d: ::Descriptor<C>) -> EventedDescriptor<C> {
         EventedDescriptor {
@@ -175,8 +181,8 @@ where
 }
 
 impl<C> Read for EventedDescriptor<C>
-where
-    C: ::DescriptorCloser,
+    where
+        C: crate::DescriptorCloser,
 {
     #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -185,8 +191,8 @@ where
 }
 
 impl<C> Write for EventedDescriptor<C>
-where
-    C: ::DescriptorCloser,
+    where
+        C: crate::DescriptorCloser,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.io_mut().write(buf)
@@ -197,133 +203,138 @@ where
     }
 }
 
-impl<C> AsyncRead for EventedDescriptor<C>
-where
-    C: ::DescriptorCloser,
-{
-    unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [u8]) -> bool {
-        true
+pin_project! {
+    pub struct AsyncDescriptor<C>
+        where
+            C: crate::DescriptorCloser,
+    {
+        #[pin]
+        inner: PollEvented<EventedDescriptor<C>>,
+        incoming: Option<Bytes>,
+        outgoing: BytesMut,
     }
 }
-
-impl<C> AsyncWrite for EventedDescriptor<C>
-where
-    C: ::DescriptorCloser,
-{
-    fn shutdown(&mut self) -> Poll<(), io::Error> {
-        unimplemented!()
-    }
-}
-
-pub struct AsyncDescriptor<C>
-where
-    C: ::DescriptorCloser,
-{
-    inner: PollEvented<EventedDescriptor<C>>,
-    incoming: Option<io::Cursor<Bytes>>,
-    outgoing: BytesMut,
-}
-
 impl<C> From<PollEvented<EventedDescriptor<C>>> for AsyncDescriptor<C>
-where
-    C: ::DescriptorCloser,
+    where
+        C: crate::DescriptorCloser,
 {
     fn from(f: PollEvented<EventedDescriptor<C>>) -> AsyncDescriptor<C> {
         AsyncDescriptor {
             inner: f,
             incoming: None,
-            outgoing: BytesMut::with_capacity(::RESERVE_AT_ONCE),
+            outgoing: BytesMut::with_capacity(RESERVE_AT_ONCE),
         }
     }
 }
 
 impl<C> Stream for AsyncDescriptor<C>
-where
-    C: ::DescriptorCloser,
+    where
+        C: crate::DescriptorCloser,
 {
-    type Item = BytesMut;
+    type Item = Result<BytesMut, io::Error>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let pin = self.get_mut();
+
+        let n = unsafe {
+            let n = {
+                let b = pin.outgoing.bytes_mut();
+
+                // Convert to `&mut [u8]`
+                let b = &mut *(b as *mut _ as *mut [u8]);
+
+                let n = ready!(Pin::new(&mut pin.inner).poll_read(cx, b))?;
+                assert!(n <= b.len(), "Bad AsyncRead implementation, more bytes were reported as read than the buffer can hold");
+                n
+            };
+
+            pin.outgoing.advance_mut(n);
+
+            n
+        };
+
+        let frame = pin.outgoing.split_to(n);
+        let cur_capacity = pin.outgoing.capacity();
+        if cur_capacity < MTU {
+            pin.outgoing.reserve(RESERVE_AT_ONCE);
+        }
+        Poll::Ready(Some(Ok(frame)))
+    }
+}
+
+#[must_use = "sinks do nothing unless polled"]
+impl<C> Sink<Bytes> for AsyncDescriptor<C>
+    where
+        C: crate::DescriptorCloser,
+{
     type Error = io::Error;
 
-    #[inline]
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        self.inner.read_buf(&mut self.outgoing).and_then(|res| {
-            if let Async::Ready(n) = res {
-                if n > 0 {
-                    let packet = self.outgoing.split_to(n);
-                    let cur_capacity = self.outgoing.capacity();
-                    if cur_capacity < ::MTU {
-                        self.outgoing.reserve(::RESERVE_AT_ONCE);
-                    }
-                    return Ok(Async::Ready(Some(packet)));
-                }
-            }
-            Ok(Async::NotReady)
-        })
-    }
-}
 
-impl<C> Sink for AsyncDescriptor<C>
-where
-    C: ::DescriptorCloser,
-{
-    type SinkItem = Bytes;
-    type SinkError = io::Error;
-
-    #[inline]
-    fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, io::Error> {
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         if self.incoming.is_some() {
-            self.poll_complete()?;
-            if self.incoming.is_some() {
-                return Ok(AsyncSink::NotReady(item));
+            match self.poll_flush(cx)? {
+                Poll::Ready(()) => {}
+                Poll::Pending => return Poll::Pending,
             }
         }
-        self.incoming = Some(item.into_buf());
-        self.poll_complete()?;
-        Ok(AsyncSink::Ready)
+
+        Poll::Ready(Ok(()))
     }
 
-    #[inline]
-    fn poll_complete(&mut self) -> Poll<(), io::Error> {
-        let res = if let Some(ref mut buf) = self.incoming {
-            self.inner.write_buf(buf).and_then(move |res| {
-                if let Async::Ready(n) = res {
-                    if n == 0 {
-                        Ok(Async::NotReady)
-                    } else if n == buf.get_ref().len() {
-                        Ok(Async::Ready(()))
-                    } else {
-                        Err(io::Error::new(
-                            io::ErrorKind::Other,
-                            "Failed to send whole datagram",
-                        ))
-                    }
-                } else {
-                    Ok(Async::NotReady)
-                }
-            })
+    fn start_send(self: Pin<&mut Self>, frame: Bytes) -> Result<(), Self::Error> {
+        let pin = self.get_mut();
+
+        pin.incoming = Some(frame);
+
+        Ok(())
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        if self.incoming.is_none() {
+            return Poll::Ready(Ok(()));
+        }
+
+        let Self {
+            ref mut inner,
+            ref mut incoming,
+            ..
+        } = *self;
+
+        let incoming = incoming.as_mut().unwrap();
+
+        let n = ready!(Pin::new(inner).poll_write(cx, incoming))?;
+
+        let wrote_all = n == incoming.len();
+        self.incoming = None;
+
+        let res = if wrote_all {
+            Ok(())
         } else {
-            Ok(Async::Ready(()))
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                "failed to write entire datagram to socket",
+            )
+                .into())
         };
-        if let Ok(Async::Ready(_)) = res {
-            self.incoming = None;
-        };
-        res
+
+        Poll::Ready(res)
     }
 
-    fn close(&mut self) -> Poll<(), io::Error> {
-        Ok(().into())
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        ready!(self.poll_flush(cx))?;
+        Poll::Ready(Ok(()))
     }
 }
 
-impl<C> ::Virtualnterface<PollEvented<EventedDescriptor<C>>>
-where
-    C: ::DescriptorCloser,
+impl<C> crate::Virtualnterface<PollEvented<EventedDescriptor<C>>>
+    where
+        C: crate::DescriptorCloser,
 {
     pub fn pop_split_channels(
         &mut self,
     ) -> Option<(
-        impl Sink<SinkItem = Bytes, SinkError = io::Error>,
-        impl Stream<Item = BytesMut, Error = io::Error>,
+        impl Sink<Bytes, Error=io::Error>,
+        impl Stream<Item=Result<BytesMut, io::Error>>,
     )> {
         if let Some(q) = self.queues.pop() {
             Some(AsyncDescriptor::from(q).split())
