@@ -4,5 +4,4 @@ members = [
     "ifcontrol",
     "bpf",
     "tuntap",
-    "ipconfig"
 ]
